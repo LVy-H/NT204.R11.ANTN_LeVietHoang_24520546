@@ -1,0 +1,37 @@
+source: pcap TEST/fixtures/02-tcp-data.pcap
+parsed 2 events from 2 packets (0 skipped, 2 with errors)
+{
+  "packets_seen": 2,
+  "events_written": 2,
+  "events_skipped": 0,
+  "packets_with_errors": 2,
+  "first_timestamp": 1759000000.1,
+  "last_timestamp": 1759000001.107919,
+  "event_types": {
+    "http_unparsed": 2
+  },
+  "network_protocols": {
+    "IPv4": 2
+  },
+  "transport_protocols": {
+    "TCP": 2
+  },
+  "application_protocols": {
+    "HTTP": 2
+  },
+  "detection_methods": {
+    "port": 2
+  },
+  "error_codes": {
+    "application/decode_error": 2
+  },
+  "source": {
+    "source": "pcap",
+    "origin": "TEST/fixtures/02-tcp-data.pcap",
+    "format": "pcap",
+    "linktype": 1,
+    "linktype_name": "EN10MB",
+    "snaplen": 262144,
+    "count_limit": null
+  }
+}
