@@ -1,6 +1,4 @@
-def main():
-    print("Hello from pcparser!")
-
+from pcparser.cli import main
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
