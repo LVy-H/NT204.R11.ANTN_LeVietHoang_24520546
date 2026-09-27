@@ -80,6 +80,9 @@ class ErrorCollector:
             }
         )
 
+    def extend(self, records):
+        self.records.extend(records)
+
     def __bool__(self):
         return bool(self.records)
 
