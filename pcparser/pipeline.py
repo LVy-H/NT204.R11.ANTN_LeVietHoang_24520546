@@ -105,6 +105,7 @@ class Pipeline:
                     errors.add(
                         TruncatedPacketError(
                             "captured bytes are shorter than the IPv4 total length",
+                            stage="network",
                             declared=network_info["total_length"],
                             captured=len(parsed.payload) + network_info["header_length"],
                         )

@@ -114,7 +114,7 @@ def main(argv=None) -> int:
     writer = JsonlWriter(args.output)
     interrupted = False
 
-    _note(args.quiet, f"source: {source.describe()}")
+    _note(args.quiet, f"source: {source.source} {source.origin}")
     try:
         _run(source, pipeline, writer, stats, args.quiet)
     except KeyboardInterrupt:
@@ -135,6 +135,8 @@ def main(argv=None) -> int:
         f" ({stats.skipped} skipped, {stats.packets_with_errors} with errors)",
     )
     if args.stats:
-        print(json.dumps(stats.to_dict(), indent=2), file=sys.stderr)
+        summary = stats.to_dict()
+        summary["source"] = source.describe()
+        print(json.dumps(summary, indent=2), file=sys.stderr)
 
     return EXIT_OK if not interrupted else 130
