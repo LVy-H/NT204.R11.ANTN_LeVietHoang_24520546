@@ -109,11 +109,15 @@ class PcapFileCapture:
                 return
             ts_sec, ts_frac, cap_len, orig_len = struct.unpack(endian + "IIII", raw)
             data = handle.read(cap_len)
-            if len(data) < cap_len:
+            short = len(data) < cap_len
+            if short:
                 self.warnings.append(
                     f"record {ts_sec}.{ts_frac} declares {cap_len} captured bytes, {len(data)} present"
                 )
             yield Record(ts_sec + ts_frac / divisor, linktype, data, orig_len, cap_len)
+            if short:
+                self.warnings.append("stopping at the truncated record, the file position is unreliable")
+                return
 
     def _pcapng(self, handle, first_block_type):
         self.format = "pcapng"
