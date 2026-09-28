@@ -1,0 +1,1 @@
+uv run main.py --pcap TEST/fixtures/08-dns-response.pcap --output TEST/case-08-dns-response/output.jsonl --stats
