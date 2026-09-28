@@ -1,0 +1,1 @@
+uv run main.py --pcap TEST/fixtures/11-unknown-protocol.pcap --output TEST/case-11-unknown-protocol/output.jsonl --stats
