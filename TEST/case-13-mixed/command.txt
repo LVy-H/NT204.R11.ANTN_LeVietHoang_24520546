@@ -1,0 +1,1 @@
+uv run main.py --pcap TEST/fixtures/13-mixed.pcapng --output TEST/case-13-mixed/output.jsonl --stats

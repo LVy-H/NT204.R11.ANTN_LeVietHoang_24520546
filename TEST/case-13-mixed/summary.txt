@@ -1,0 +1,44 @@
+source: pcap TEST/fixtures/13-mixed.pcapng
+parsed 12 events from 12 packets (0 skipped, 0 with errors)
+{
+  "packets_seen": 12,
+  "events_written": 12,
+  "events_skipped": 0,
+  "packets_with_errors": 0,
+  "first_timestamp": 1759000000.0,
+  "last_timestamp": 1759000003.0,
+  "event_types": {
+    "tcp_segment": 4,
+    "smtp_command": 4,
+    "dns_query": 3,
+    "http_request": 1
+  },
+  "network_protocols": {
+    "IPv4": 12
+  },
+  "transport_protocols": {
+    "TCP": 9,
+    "UDP": 3
+  },
+  "application_protocols": {
+    "UNKNOWN": 4,
+    "SMTP": 4,
+    "DNS": 3,
+    "HTTP": 1
+  },
+  "detection_methods": {
+    "none": 4,
+    "port+payload": 4,
+    "payload": 4
+  },
+  "error_codes": {},
+  "source": {
+    "source": "pcap",
+    "origin": "TEST/fixtures/13-mixed.pcapng",
+    "format": "pcapng",
+    "linktype": 1,
+    "linktype_name": "EN10MB",
+    "snaplen": null,
+    "count_limit": null
+  }
+}
