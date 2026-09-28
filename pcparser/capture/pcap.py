@@ -200,9 +200,11 @@ class PcapFileCapture:
         if len(body) < 4 or not interfaces:
             self.warnings.append("pcapng simple packet block without a usable interface")
             return None
+        linktype, snaplen, _ = interfaces[0]
         orig_len = struct.unpack_from(endian + "I", body, 0)[0]
-        data = body[4:]
-        return Record(0.0, interfaces[0][0], data, orig_len, len(data))
+        available = len(body) - 4
+        captured = min(orig_len, snaplen, available)
+        return Record(0.0, linktype, body[4 : 4 + captured], orig_len, captured)
 
 
 def _interface(body, endian):
