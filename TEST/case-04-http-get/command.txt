@@ -1,0 +1,1 @@
+uv run main.py --pcap TEST/fixtures/04-http-get.pcap --output TEST/case-04-http-get/output.jsonl --stats
