@@ -1,0 +1,1 @@
+uv run main.py --pcap TEST/fixtures/03-udp.pcap --output TEST/case-03-udp/output.jsonl --stats
