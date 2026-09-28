@@ -256,3 +256,7 @@ một implementation khác — kể cả checksum.
   và ghi warning.
 - **PCAPNG** hỗ trợ Section Header, Interface Description, Enhanced Packet, Simple
   Packet; các block khác (Name Resolution, Statistics) được bỏ qua an toàn.
+
+## 9. Khai báo sử dụng AI
+
+OMP(https://github.com/can1357/oh-my-pi) with deepseek-v4.1-flash
