@@ -39,8 +39,11 @@ class Pipeline:
     def process(self, raw):
         try:
             event = self._build(raw)
-        except Exception as error:  # noqa: BLE001 - the capture loop must survive anything
-            event = self._fallback(raw, error)
+        except Exception as error:
+            try:
+                event = self._fallback(raw, error)
+            except Exception:
+                return None
         if self.unknown_policy == "skip" and event["application_protocol"] == UNKNOWN:
             return None
         return event
@@ -50,11 +53,27 @@ class Pipeline:
         collector.add_exception(error, "pipeline")
         return build_event(
             raw,
-            capture=self._capture_block(raw, ErrorCollector()),
+            capture={
+                "source": raw.source,
+                "origin": raw.origin,
+                "linktype": raw.linktype,
+                "linktype_name": linktype_name(raw.linktype),
+                "captured_length": len(raw.data),
+                "original_length": raw.original_length,
+                "declared_capture_length": raw.declared_capture_length,
+                "truncated_by_capture": raw.truncated,
+            },
             link=None,
             network=None,
             transport=None,
-            payload=self._summary(b""),
+            payload={
+                "length": len(raw.data),
+                "sha256": "",
+                "preview": "",
+                "preview_truncated": False,
+                "preview_encoding": None,
+                "binary": None,
+            },
             detection=None,
             application=None,
             errors=collector.records,
@@ -161,6 +180,6 @@ class Pipeline:
             return function(*args, **kwargs)
         except PacketParseError as error:
             errors.add(error)
-        except Exception as error:  # noqa: BLE001 - one bad parser must not stop the capture
+        except Exception as error:
             errors.add_exception(error, stage)
         return None
