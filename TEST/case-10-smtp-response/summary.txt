@@ -1,0 +1,35 @@
+source: pcap TEST/fixtures/10-smtp-response.pcap
+parsed 4 events from 4 packets (0 skipped, 0 with errors)
+{
+  "packets_seen": 4,
+  "events_written": 4,
+  "events_skipped": 0,
+  "packets_with_errors": 0,
+  "first_timestamp": 1759000000.1,
+  "last_timestamp": 1759000003.123757,
+  "event_types": {
+    "smtp_response": 4
+  },
+  "network_protocols": {
+    "IPv4": 4
+  },
+  "transport_protocols": {
+    "TCP": 4
+  },
+  "application_protocols": {
+    "SMTP": 4
+  },
+  "detection_methods": {
+    "port+payload": 4
+  },
+  "error_codes": {},
+  "source": {
+    "source": "pcap",
+    "origin": "TEST/fixtures/10-smtp-response.pcap",
+    "format": "pcap",
+    "linktype": 1,
+    "linktype_name": "EN10MB",
+    "snaplen": 262144,
+    "count_limit": null
+  }
+}
