@@ -1,0 +1,60 @@
+source: pcap TEST/fixtures/12-malformed.pcap
+warning: record 1759000013.202947 declares 200 captured bytes, 40 present
+warning: stopping at the truncated record, the file position is unreliable
+parsed 14 events from 14 packets (0 skipped, 14 with errors)
+{
+  "packets_seen": 14,
+  "events_written": 14,
+  "events_skipped": 0,
+  "packets_with_errors": 14,
+  "first_timestamp": 1759000000.1,
+  "last_timestamp": 1759000013.202947,
+  "event_types": {
+    "unparsed": 5,
+    "network_only": 4,
+    "dns_unparsed": 2,
+    "tcp_segment": 1,
+    "unknown_payload": 1,
+    "http_request": 1
+  },
+  "network_protocols": {
+    "IPv4": 9,
+    "none": 5
+  },
+  "transport_protocols": {
+    "none": 9,
+    "UDP": 3,
+    "TCP": 2
+  },
+  "application_protocols": {
+    "UNKNOWN": 11,
+    "DNS": 2,
+    "HTTP": 1
+  },
+  "detection_methods": {
+    "none": 2,
+    "port": 2,
+    "port+payload": 1
+  },
+  "error_codes": {
+    "network/truncated_packet": 4,
+    "network/malformed_header": 2,
+    "transport/malformed_header": 2,
+    "transport/truncated_packet": 2,
+    "link/truncated_packet": 1,
+    "network/unsupported_protocol": 1,
+    "application/decode_error": 1,
+    "application/truncated_packet": 1,
+    "application/truncated_body": 1,
+    "capture/truncated_packet": 1
+  },
+  "source": {
+    "source": "pcap",
+    "origin": "TEST/fixtures/12-malformed.pcap",
+    "format": "pcap",
+    "linktype": 1,
+    "linktype_name": "EN10MB",
+    "snaplen": 262144,
+    "count_limit": null
+  }
+}

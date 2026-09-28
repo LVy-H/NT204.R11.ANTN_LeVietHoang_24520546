@@ -1,0 +1,1 @@
+uv run main.py --pcap TEST/fixtures/12-malformed.pcap --output TEST/case-12-malformed/output.jsonl --stats
