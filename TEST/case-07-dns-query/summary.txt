@@ -1,0 +1,35 @@
+source: pcap TEST/fixtures/07-dns-query.pcap
+parsed 3 events from 3 packets (0 skipped, 0 with errors)
+{
+  "packets_seen": 3,
+  "events_written": 3,
+  "events_skipped": 0,
+  "packets_with_errors": 0,
+  "first_timestamp": 1759000000.1,
+  "last_timestamp": 1759000002.115838,
+  "event_types": {
+    "dns_query": 3
+  },
+  "network_protocols": {
+    "IPv4": 3
+  },
+  "transport_protocols": {
+    "UDP": 3
+  },
+  "application_protocols": {
+    "DNS": 3
+  },
+  "detection_methods": {
+    "port+payload": 3
+  },
+  "error_codes": {},
+  "source": {
+    "source": "pcap",
+    "origin": "TEST/fixtures/07-dns-query.pcap",
+    "format": "pcap",
+    "linktype": 1,
+    "linktype_name": "EN10MB",
+    "snaplen": 262144,
+    "count_limit": null
+  }
+}
