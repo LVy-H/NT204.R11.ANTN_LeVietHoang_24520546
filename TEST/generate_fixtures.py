@@ -176,9 +176,10 @@ def dns_response():
         server_frame(ip(UDP(sport=DNS_PORT, dport=40000)
                         / DNS(id=0x1234, qr=1, aa=1, rd=1, ra=1,
                               qd=DNSQR(qname="www.example.com", qtype="A"),
-                              an=DNSRR(rrname="www.example.com", type="CNAME", ttl=300,
-                                       rdata=ename("example.com"))
-                              / DNSRR(rrname="example.com", type="A", ttl=300, rdata="93.184.216.34")),
+                              an=[DNSRR(rrname="www.example.com", type="CNAME", ttl=300,
+                                        rdata=ename("example.com")),
+                                  DNSRR(rrname="example.com", type="A", ttl=300,
+                                        rdata="93.184.216.34")]),
                         src=SERVER, dst=CLIENT)),
         server_frame(ip(UDP(sport=DNS_PORT, dport=40000)
                         / DNS(id=0x1237, qr=1, aa=1, rd=1, ra=1, rcode=3,

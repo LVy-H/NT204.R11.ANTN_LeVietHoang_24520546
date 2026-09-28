@@ -11,6 +11,14 @@ uv run python TEST/generate_fixtures.py   # sinh lại toàn bộ fixture (deter
 sh TEST/run_cases.sh                      # chạy lại toàn bộ case, ghi output.jsonl
 ```
 
+`run_cases.sh` gọi thẳng interpreter trong `.venv` để phần thống kê chỉ còn output
+của chương trình (không lẫn thông báo build của `uv`). Đặt `PYTHON=python3` nếu muốn
+dùng interpreter khác. Lệnh tương đương khi đã kích hoạt virtualenv:
+
+```bash
+python main.py --pcap TEST/fixtures/01-tcp-handshake.pcap --output out.jsonl --stats
+```
+
 Mỗi thư mục `case-<tên>/` gồm:
 
 | File | Nội dung |

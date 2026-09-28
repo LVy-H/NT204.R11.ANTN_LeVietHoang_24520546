@@ -1,1 +1,1 @@
-uv run main.py --pcap TEST/fixtures/07-dns-query.pcap --output TEST/case-07-dns-query/output.jsonl --stats
+.venv/bin/python main.py --pcap TEST/fixtures/07-dns-query.pcap --output TEST/case-07-dns-query/output.jsonl --stats

@@ -1,1 +1,1 @@
-uv run main.py --pcap TEST/fixtures/06-http-response.pcap --output TEST/case-06-http-response/output.jsonl --stats
+.venv/bin/python main.py --pcap TEST/fixtures/06-http-response.pcap --output TEST/case-06-http-response/output.jsonl --stats

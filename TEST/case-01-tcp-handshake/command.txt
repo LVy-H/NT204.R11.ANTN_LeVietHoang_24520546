@@ -1,1 +1,1 @@
-uv run main.py --pcap TEST/fixtures/01-tcp-handshake.pcap --output TEST/case-01-tcp-handshake/output.jsonl --stats
+.venv/bin/python main.py --pcap TEST/fixtures/01-tcp-handshake.pcap --output TEST/case-01-tcp-handshake/output.jsonl --stats
