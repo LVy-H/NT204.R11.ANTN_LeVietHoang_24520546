@@ -123,7 +123,7 @@ def smtp_score(payload: bytes) -> tuple[float, str | None]:
         code = int(status.group(1))
         if status.group(2) == b"-" or code in SMTP_CODES:
             return 0.85, f"SMTP status code {code}"
-        return 0.6, f"numeric status line {code}"
+        return 0.45, f"numeric status line {code}"
     if SMTP_VERB.match(line):
         return 0.7, "SMTP verb"
     return 0.0, None
