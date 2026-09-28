@@ -1,4 +1,4 @@
-# TEST — kết quả test case bắt buộc
+# TEST: kết quả test case bắt buộc
 
 Thư mục này chứa fixture và kết quả chạy của 12 test case bắt buộc trong đề bài
 (mục 9), cộng thêm 1 case kiểm tra định dạng `pcapng`.
@@ -46,7 +46,7 @@ Mỗi thư mục `case-<tên>/` gồm:
 | 12 | Malformed packet: không crash | `12-malformed.pcap` | 14 event, lỗi được ghi vào `errors[]` theo từng stage, không exception |
 | 13 | (bổ sung) pcapng | `13-mixed.pcapng` | 12 event, `capture.format` = `pcapng` |
 
-## Chi tiết case 12 — malformed
+## Chi tiết case 12: malformed
 
 Fixture chứa 15 record, mỗi record cố tình vi phạm đúng một quy tắc:
 
@@ -68,13 +68,13 @@ Fixture chứa 15 record, mỗi record cố tình vi phạm đúng một quy t�
 | 14 | Record khai báo 200 byte, file chỉ có 40 | `capture/truncated_packet` + `network/truncated_packet` + `transport/truncated_packet` |
 | 15 | Frame rỗng | dừng đọc sau record 14, xem `summary.txt` |
 
-Record 15 nằm sau record 14: khi record 14 khai báo nhiều byte hơn số byte thực có,
-con trỏ file không còn tin cậy được nên reader dừng lại và ghi warning — đúng hành vi
-của `tcpdump`/`tshark`. Warning được ghi rõ trong `summary.txt`.
+Record 15 nằm sau record 14. Khi record 14 khai báo nhiều byte hơn số byte thực có,
+con trỏ file không còn tin cậy được nên reader dừng ở đó, giống `tcpdump`/`tshark`.
+Warning được ghi trong `summary.txt`.
 
 ## Ghi chú
 
-- Fixture sinh bằng Scapy nhưng **không** dùng Scapy để đọc: `pcparser` parse lại
-  bằng code tự viết, nên output là kiểm chứng độc lập.
+- Fixture sinh bằng Scapy, còn `pcparser` đọc và parse bằng code tự viết, nên output
+  là kiểm chứng độc lập.
 - Timestamp trong fixture là cố định (`1759000000`) để kết quả tái lập được.
-- Case 12 lưu 14/15 record — lý do nêu ở bảng trên.
+- Case 12 chỉ lưu 14/15 record, lý do nêu ở bảng trên.

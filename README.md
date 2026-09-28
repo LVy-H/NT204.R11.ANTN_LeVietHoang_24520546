@@ -1,7 +1,7 @@
-# PCP — Packet Capture & Parser cho hệ thống IDS/IPS
+# PCP: Packet Capture & Parser cho hệ thống IDS/IPS
 
-Bài tập 1. Module thu thập packet từ **live traffic** hoặc **file PCAP**, phân tích
-IPv4, TCP, UDP, HTTP/1.x, DNS, SMTP và xuất ra **event JSON Lines chuẩn hoá** để
+Bài tập 1. Module thu thập packet từ live traffic hoặc file PCAP, phân tích
+IPv4, TCP, UDP, HTTP/1.x, DNS, SMTP và xuất ra event JSON Lines chuẩn hoá để
 các bài tập IDS sau chỉ việc đọc event, không cần đụng packet thô.
 
 ```
@@ -9,15 +9,15 @@ Raw Packet → Network Parser → Transport Parser → Application Detector
            → Application Parser → Normalized IDS Event
 ```
 
-Cả hai nguồn dùng **cùng một pipeline**: Scapy chỉ làm I/O cho live capture rồi
+Cả hai nguồn dùng cùng một pipeline. Scapy chỉ làm I/O cho live capture rồi
 chuyển ngay thành bytes; file PCAP do reader tự viết trong `pcparser/capture/pcap.py`
 đọc (hỗ trợ cả `.pcap` và `.pcapng`, không cần Scapy).
 
 ## Cài đặt
 
 ```bash
-uv sync                                  # khuyến nghị
-pip install -r requirements.txt          # hoặc dùng pip, cần Python >= 3.10
+uv sync                          # dùng uv.lock, cố định phiên bản Scapy
+pip install -r requirements.txt  # hoặc dùng pip, cần Python >= 3.10
 ```
 
 ## Chạy
@@ -47,17 +47,16 @@ Mỗi dòng JSON là một packet, với các khoá: `packet_id`, `timestamp`, `
 `dst_ip` / `src_port` / `dst_port`, `capture`, `link`, `network`, `transport`,
 `application`, `payload`, `errors`.
 
-Ví dụ đầy đủ: `TEST/case-04-http-get/output.jsonl` và
-`TEST/case-12-malformed/output.jsonl`. `event_type` cho biết packet đã parse tới
-đâu (`http_request`, `dns_response`, `tcp_segment`, `unknown_payload`,
-`network_only`, `unparsed`, …); mọi lỗi gặp phải nằm trong `errors[]` kèm
-`stage`/`code` nên không packet lỗi nào làm chương trình dừng.
+Ví dụ: `TEST/case-04-http-get/output.jsonl` và `TEST/case-12-malformed/output.jsonl`.
+`event_type` cho biết packet đã parse tới đâu (`http_request`, `dns_response`,
+`tcp_segment`, `unknown_payload`, `network_only`, `unparsed`, …). Lỗi nằm trong
+`errors[]` kèm `stage`/`code`, nên không packet lỗi nào làm chương trình dừng.
 
 ## Nhận diện application protocol
 
-Dựa trên chữ ký payload, port chỉ là tín hiệu cộng thêm — HTTP trên port không
-chuẩn vẫn nhận diện đúng. Quyết định và điểm của từng protocol được ghi lại trong
-`application.detection` (`method`, `confidence`, `evidence`, `scores`).
+Port chỉ là tín hiệu cộng thêm, chữ ký payload mới quyết định, nên HTTP trên port
+không chuẩn vẫn nhận diện đúng. Quyết định và điểm của từng protocol được ghi lại
+trong `application.detection` (`method`, `confidence`, `evidence`, `scores`).
 
 ## Test
 
