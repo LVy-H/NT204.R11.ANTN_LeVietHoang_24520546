@@ -1,0 +1,1 @@
+uv run main.py --pcap TEST/fixtures/09-smtp-command.pcap --output TEST/case-09-smtp-command/output.jsonl --stats
