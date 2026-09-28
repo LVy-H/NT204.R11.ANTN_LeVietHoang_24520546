@@ -5,7 +5,24 @@ import re
 from ..errors import DecodeError
 
 COMMANDS = frozenset(
-    "HELO EHLO MAIL RCPT DATA QUIT RSET NOOP VRFY EXPN HELP AUTH STARTTLS BDAT TURN ETRN".split()
+    [
+        "HELO",
+        "EHLO",
+        "MAIL",
+        "RCPT",
+        "DATA",
+        "QUIT",
+        "RSET",
+        "NOOP",
+        "VRFY",
+        "EXPN",
+        "HELP",
+        "AUTH",
+        "STARTTLS",
+        "BDAT",
+        "TURN",
+        "ETRN",
+    ]
 )
 
 RESPONSE_LINE = re.compile(rb"^(\d{3})([ -])(.*)$")
@@ -66,7 +83,9 @@ def parse(data: bytes) -> dict:
         if command:
             verb = command.group(1).decode("latin-1").upper()
             if verb in COMMANDS:
-                commands.append(_command(verb, (command.group(2) or b"").decode("latin-1").strip(), raw))
+                commands.append(
+                    _command(verb, (command.group(2) or b"").decode("latin-1").strip(), raw)
+                )
                 continue
         if len(unparsed) < MAX_UNPARSED:
             unparsed.append(raw.decode("latin-1", "replace"))

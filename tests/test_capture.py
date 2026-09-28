@@ -7,13 +7,21 @@ from pcparser.capture.pcap import PcapFileCapture
 from pcparser.errors import MalformedHeaderError
 
 TS = 1759000000
-FRAME_A = bytes.fromhex("0200000000020200000000010800") + bytes.fromhex("4500001c00010000400600000a0000010a000002")
-FRAME_B = bytes.fromhex("0200000000020200000000010800") + bytes.fromhex("4500001c00010000400600000a0000010a000003")
+FRAME_A = bytes.fromhex("0200000000020200000000010800") + bytes.fromhex(
+    "4500001c00010000400600000a0000010a000002"
+)
+FRAME_B = bytes.fromhex("0200000000020200000000010800") + bytes.fromhex(
+    "4500001c00010000400600000a0000010a000003"
+)
 
 
 def classic(records, *, endian="<", divisor=1_000_000, linktype=1, snaplen=262144):
-    magic = {("<", 1_000_000): b"\xd4\xc3\xb2\xa1", (">", 1_000_000): b"\xa1\xb2\xc3\xd4",
-             ("<", 1_000_000_000): b"\x4d\x3c\xb2\xa1", (">", 1_000_000_000): b"\xa1\xb2\x3c\x4d"}[(endian, divisor)]
+    magic = {
+        ("<", 1_000_000): b"\xd4\xc3\xb2\xa1",
+        (">", 1_000_000): b"\xa1\xb2\xc3\xd4",
+        ("<", 1_000_000_000): b"\x4d\x3c\xb2\xa1",
+        (">", 1_000_000_000): b"\xa1\xb2\x3c\x4d",
+    }[(endian, divisor)]
     out = magic + struct.pack(endian + "HHiIII", 2, 4, 0, 0, snaplen, linktype)
     for seconds, fraction, data, captured in records:
         out += struct.pack(endian + "IIII", seconds, fraction, captured, len(data)) + data
@@ -38,7 +46,9 @@ def interface_description(linktype=1, snaplen=262144, tsresol=None, endian="<"):
 
 
 def enhanced_packet(data, timestamp, iface=0, endian="<"):
-    body = struct.pack(endian + "IIIII", iface, timestamp >> 32, timestamp & 0xFFFFFFFF, len(data), len(data))
+    body = struct.pack(
+        endian + "IIIII", iface, timestamp >> 32, timestamp & 0xFFFFFFFF, len(data), len(data)
+    )
     body += data + b"\x00" * (-len(data) % 4)
     return block(6, body, endian)
 
@@ -105,7 +115,11 @@ def test_empty_file_is_rejected(tmp_path):
 
 
 def test_pcapng_little_endian(tmp_path):
-    raw = section_header() + interface_description() + enhanced_packet(FRAME_A, TS * 1_000_000 + 250000)
+    raw = (
+        section_header()
+        + interface_description()
+        + enhanced_packet(FRAME_A, TS * 1_000_000 + 250000)
+    )
     source = PcapFileCapture(write(tmp_path, raw, "capture.pcapng"))
     packets = list(source.packets())
     assert source.format == "pcapng"
@@ -126,13 +140,21 @@ def test_pcapng_big_endian(tmp_path):
 
 
 def test_pcapng_custom_timestamp_resolution(tmp_path):
-    raw = section_header() + interface_description(tsresol=9) + enhanced_packet(FRAME_A, TS * 1_000_000_000 + 500000000)
+    raw = (
+        section_header()
+        + interface_description(tsresol=9)
+        + enhanced_packet(FRAME_A, TS * 1_000_000_000 + 500000000)
+    )
     packets = list(PcapFileCapture(write(tmp_path, raw, "capture.pcapng")).packets())
     assert packets[0].timestamp == pytest.approx(TS + 0.5)
 
 
 def test_pcapng_binary_timestamp_resolution(tmp_path):
-    raw = section_header() + interface_description(tsresol=0x80 | 10) + enhanced_packet(FRAME_A, TS * 1024)
+    raw = (
+        section_header()
+        + interface_description(tsresol=0x80 | 10)
+        + enhanced_packet(FRAME_A, TS * 1024)
+    )
     packets = list(PcapFileCapture(write(tmp_path, raw, "capture.pcapng")).packets())
     assert packets[0].timestamp == pytest.approx(TS)
 
@@ -171,8 +193,14 @@ def test_describe_and_linktype_name():
 
 def test_rawpacket_helpers():
     packet = RawPacket(
-        packet_id=7, timestamp=1.5, data=b"abc", linktype=1, source="pcap", origin="x.pcap",
-        original_length=9, declared_capture_length=9,
+        packet_id=7,
+        timestamp=1.5,
+        data=b"abc",
+        linktype=1,
+        source="pcap",
+        origin="x.pcap",
+        original_length=9,
+        declared_capture_length=9,
     )
     assert packet.captured_length == 3
     assert packet.truncated is True

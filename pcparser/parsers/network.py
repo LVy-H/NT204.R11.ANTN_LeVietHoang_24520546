@@ -117,7 +117,9 @@ def parse_ipv4(data: bytes) -> NetworkParse:
 
     ihl = data[0] & 0x0F
     if ihl < 5:
-        raise MalformedHeaderError(f"IPv4 IHL {ihl} is below the minimum of 5", stage="network", ihl=ihl)
+        raise MalformedHeaderError(
+            f"IPv4 IHL {ihl} is below the minimum of 5", stage="network", ihl=ihl
+        )
     header_length = ihl * 4
     if header_length > IPV4_MAX_HEADER:
         raise MalformedHeaderError(
@@ -134,7 +136,11 @@ def parse_ipv4(data: bytes) -> NetworkParse:
     total_length, identification, flags_fragment, ttl, protocol, checksum, src_raw, dst_raw = (
         struct.unpack_from("!HHHBBH4s4s", data, 2)
     )
-    options = parse_options(data[IPV4_MIN_HEADER:header_length]) if header_length > IPV4_MIN_HEADER else []
+    options = (
+        parse_options(data[IPV4_MIN_HEADER:header_length])
+        if header_length > IPV4_MIN_HEADER
+        else []
+    )
     if total_length < header_length:
         raise MalformedHeaderError(
             f"IPv4 total length {total_length} is smaller than its header length {header_length}",

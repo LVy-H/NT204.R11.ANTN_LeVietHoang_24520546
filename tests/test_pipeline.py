@@ -92,7 +92,12 @@ def test_dns_response_has_answers():
 
 def test_smtp_commands():
     results = events("09-smtp-command.pcap")
-    assert [event["application"]["smtp"]["command"] for event in results] == ["EHLO", "MAIL", "RCPT", "DATA"]
+    assert [event["application"]["smtp"]["command"] for event in results] == [
+        "EHLO",
+        "MAIL",
+        "RCPT",
+        "DATA",
+    ]
     assert results[1]["application"]["smtp"]["mail_from"] == "alice@example.test"
     assert results[2]["application"]["smtp"]["rcpt_to"] == ["bob@example.test"]
     assert all(event["event_type"] == "smtp_command" for event in results)
@@ -100,7 +105,12 @@ def test_smtp_commands():
 
 def test_smtp_status_codes():
     results = events("10-smtp-response.pcap")
-    assert [event["application"]["smtp"]["status_code"] for event in results] == [220, 250, 354, 550]
+    assert [event["application"]["smtp"]["status_code"] for event in results] == [
+        220,
+        250,
+        354,
+        550,
+    ]
     assert results[1]["application"]["smtp"]["reply_count"] == 1
     assert all(event["event_type"] == "smtp_response" for event in results)
 
@@ -109,7 +119,11 @@ def test_unknown_protocols_do_not_crash():
     results = events("11-unknown-protocol.pcap")
     assert len(results) == 6
     assert all(event["application_protocol"] == "UNKNOWN" for event in results)
-    assert {event["event_type"] for event in results} == {"unknown_payload", "network_only", "unparsed"}
+    assert {event["event_type"] for event in results} == {
+        "unknown_payload",
+        "network_only",
+        "unparsed",
+    }
     assert results[3]["network_protocol"] == "IPv4"
     assert results[3]["transport"] is None
 
@@ -136,7 +150,10 @@ def test_pcapng_fixture_parses_like_pcap():
     assert all(event["capture"]["source"] == "pcap" for event in results)
     assert all(event["capture"]["linktype_name"] == "EN10MB" for event in results)
     assert {event["event_type"] for event in results} == {
-        "tcp_segment", "http_request", "dns_query", "smtp_command",
+        "tcp_segment",
+        "http_request",
+        "dns_query",
+        "smtp_command",
     }
 
 
@@ -157,10 +174,25 @@ def test_invalid_unknown_policy_is_rejected():
 def test_default_schema_keys_are_stable():
     event = events("04-http-get.pcap")[1]
     assert set(event) == {
-        "schema_version", "packet_id", "timestamp", "timestamp_iso", "event_type",
-        "network_protocol", "transport_protocol", "application_protocol",
-        "src_ip", "dst_ip", "src_port", "dst_port",
-        "capture", "link", "network", "transport", "application", "payload", "errors",
+        "schema_version",
+        "packet_id",
+        "timestamp",
+        "timestamp_iso",
+        "event_type",
+        "network_protocol",
+        "transport_protocol",
+        "application_protocol",
+        "src_ip",
+        "dst_ip",
+        "src_port",
+        "dst_port",
+        "capture",
+        "link",
+        "network",
+        "transport",
+        "application",
+        "payload",
+        "errors",
     }
     assert event["src_ip"] == "10.0.0.1"
     assert event["dst_port"] == 80

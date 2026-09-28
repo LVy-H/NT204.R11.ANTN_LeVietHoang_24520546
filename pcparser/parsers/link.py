@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import namedtuple
-from typing import Iterable
+from collections.abc import Iterable
 
 from ..capture.base import (
     DLT_EN10MB,
@@ -127,7 +127,11 @@ def _sll(data: bytes) -> LinkParse:
         raise TruncatedPacketError(
             "linux cooked header truncated", stage="link", declared=16, captured=len(data)
         )
-    packet_type, arphrd, addr_len = int.from_bytes(data[0:2], "big"), int.from_bytes(data[2:4], "big"), int.from_bytes(data[4:6], "big")
+    packet_type, arphrd, addr_len = (
+        int.from_bytes(data[0:2], "big"),
+        int.from_bytes(data[2:4], "big"),
+        int.from_bytes(data[4:6], "big"),
+    )
     address = data[6:14][: min(addr_len, 8)]
     ethertype = int.from_bytes(data[14:16], "big")
     info = {
@@ -168,9 +172,13 @@ def _raw_ip(data: bytes) -> LinkParse:
         raise TruncatedPacketError("empty raw IP payload", stage="link", captured=0)
     version = data[0] >> 4
     if version == 4:
-        return LinkParse({"protocol": "RAW", "ethertype": 0x0800, "ethertype_name": "IPv4"}, data, "IPv4")
+        return LinkParse(
+            {"protocol": "RAW", "ethertype": 0x0800, "ethertype_name": "IPv4"}, data, "IPv4"
+        )
     if version == 6:
-        return LinkParse({"protocol": "RAW", "ethertype": 0x86DD, "ethertype_name": "IPv6"}, data, "IPv6")
+        return LinkParse(
+            {"protocol": "RAW", "ethertype": 0x86DD, "ethertype_name": "IPv6"}, data, "IPv6"
+        )
     raise MalformedHeaderError(
         f"raw link payload starts with IP version {version}", stage="link", version=version
     )
@@ -186,9 +194,13 @@ def parse_link(data: bytes, linktype: int) -> LinkParse:
     if linktype == DLT_LOOP:
         return _null(data, True, "LOOP")
     if linktype == DLT_IPV4:
-        return LinkParse({"protocol": "IPV4", "ethertype": 0x0800, "ethertype_name": "IPv4"}, data, "IPv4")
+        return LinkParse(
+            {"protocol": "IPV4", "ethertype": 0x0800, "ethertype_name": "IPv4"}, data, "IPv4"
+        )
     if linktype == DLT_IPV6:
-        return LinkParse({"protocol": "IPV6", "ethertype": 0x86DD, "ethertype_name": "IPv6"}, data, "IPv6")
+        return LinkParse(
+            {"protocol": "IPV6", "ethertype": 0x86DD, "ethertype_name": "IPv6"}, data, "IPv6"
+        )
     if linktype == DLT_LINUX_SLL:
         return _sll(data)
     if linktype == DLT_LINUX_SLL2:

@@ -1,10 +1,9 @@
 import pytest
+from golden import ICMP, IPV6, SERVER_MAC, TCP_SYN_OPTIONS, UDP, VLAN
 
 from pcparser.capture.base import DLT_EN10MB, DLT_LINUX_SLL, DLT_LINUX_SLL2, DLT_NULL, DLT_RAW
 from pcparser.errors import TruncatedPacketError, UnsupportedProtocolError
 from pcparser.parsers.link import parse_link
-
-from golden import ICMP, IPV6, SERVER_MAC, TCP_SYN_OPTIONS, UDP, VLAN
 
 
 def test_ethernet_fields_and_payload():

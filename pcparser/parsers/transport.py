@@ -79,7 +79,10 @@ def tcp_options(raw: bytes) -> list[dict]:
             entry["tsecr"] = int.from_bytes(value[4:8], "big")
         elif kind == 5 and length >= 10:
             entry["blocks"] = [
-                [int.from_bytes(value[i : i + 4], "big"), int.from_bytes(value[i + 4 : i + 8], "big")]
+                [
+                    int.from_bytes(value[i : i + 4], "big"),
+                    int.from_bytes(value[i + 4 : i + 8], "big"),
+                ]
                 for i in range(0, len(value) - 7, 8)
             ]
         else:
@@ -89,17 +92,26 @@ def tcp_options(raw: bytes) -> list[dict]:
     return options
 
 
-def _checksum_state(data: bytes, src_ip: str, dst_ip: str, protocol: int, declared_length: int | None):
+def _checksum_state(
+    data: bytes, src_ip: str, dst_ip: str, protocol: int, declared_length: int | None
+):
     if declared_length is None or declared_length != len(data):
         return None
-    header = pseudo_header(IPv4Address(src_ip).packed, IPv4Address(dst_ip).packed, protocol, declared_length)
+    header = pseudo_header(
+        IPv4Address(src_ip).packed, IPv4Address(dst_ip).packed, protocol, declared_length
+    )
     return internet_checksum(header + data) == 0
 
 
-def parse_tcp(data: bytes, *, src_ip: str, dst_ip: str, declared_length: int | None = None) -> TransportParse:
+def parse_tcp(
+    data: bytes, *, src_ip: str, dst_ip: str, declared_length: int | None = None
+) -> TransportParse:
     if len(data) < TCP_MIN_HEADER:
         raise TruncatedPacketError(
-            "TCP header shorter than 20 bytes", stage="transport", declared=TCP_MIN_HEADER, captured=len(data)
+            "TCP header shorter than 20 bytes",
+            stage="transport",
+            declared=TCP_MIN_HEADER,
+            captured=len(data),
         )
 
     src_port, dst_port, seq, ack, offset_flags, window, checksum, urgent = struct.unpack_from(
@@ -109,19 +121,28 @@ def parse_tcp(data: bytes, *, src_ip: str, dst_ip: str, declared_length: int | N
     header_length = data_offset * 4
     if data_offset < 5:
         raise MalformedHeaderError(
-            f"TCP data offset {data_offset} is below the minimum of 5", stage="transport", data_offset=data_offset
+            f"TCP data offset {data_offset} is below the minimum of 5",
+            stage="transport",
+            data_offset=data_offset,
         )
     if header_length > TCP_MAX_HEADER:
         raise MalformedHeaderError(
-            f"TCP header length {header_length} exceeds 60 bytes", stage="transport", data_offset=data_offset
+            f"TCP header length {header_length} exceeds 60 bytes",
+            stage="transport",
+            data_offset=data_offset,
         )
     if len(data) < header_length:
         raise TruncatedPacketError(
-            "TCP header options truncated", stage="transport", declared=header_length, captured=len(data)
+            "TCP header options truncated",
+            stage="transport",
+            declared=header_length,
+            captured=len(data),
         )
 
     flags = {name: bool(offset_flags & bit) for bit, name, _ in TCP_FLAG_BITS}
-    options = tcp_options(data[TCP_MIN_HEADER:header_length]) if header_length > TCP_MIN_HEADER else []
+    options = (
+        tcp_options(data[TCP_MIN_HEADER:header_length]) if header_length > TCP_MIN_HEADER else []
+    )
     payload = data[header_length:]
     info = {
         "protocol": "TCP",
@@ -144,10 +165,15 @@ def parse_tcp(data: bytes, *, src_ip: str, dst_ip: str, declared_length: int | N
     return TransportParse(info, payload)
 
 
-def parse_udp(data: bytes, *, src_ip: str, dst_ip: str, declared_length: int | None = None) -> TransportParse:
+def parse_udp(
+    data: bytes, *, src_ip: str, dst_ip: str, declared_length: int | None = None
+) -> TransportParse:
     if len(data) < UDP_HEADER:
         raise TruncatedPacketError(
-            "UDP header shorter than 8 bytes", stage="transport", declared=UDP_HEADER, captured=len(data)
+            "UDP header shorter than 8 bytes",
+            stage="transport",
+            declared=UDP_HEADER,
+            captured=len(data),
         )
 
     src_port, dst_port, length, checksum = struct.unpack_from("!HHHH", data, 0)
@@ -158,9 +184,7 @@ def parse_udp(data: bytes, *, src_ip: str, dst_ip: str, declared_length: int | N
 
     truncation = length > len(data)
     payload = data[UDP_HEADER:length] if not truncation else data[UDP_HEADER:]
-    if checksum == 0:
-        checksum_valid = None
-    elif truncation or length != len(data):
+    if checksum == 0 or truncation or length != len(data):
         checksum_valid = None
     else:
         checksum_valid = _checksum_state(data, src_ip, dst_ip, 17, length)

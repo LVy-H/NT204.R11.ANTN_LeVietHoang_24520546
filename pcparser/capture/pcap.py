@@ -65,7 +65,9 @@ class PcapFileCapture:
         with open(self.path, "rb") as handle:
             magic = handle.read(4)
             if len(magic) < 4:
-                raise MalformedHeaderError("capture file is empty", stage="capture", path=self.origin)
+                raise MalformedHeaderError(
+                    "capture file is empty", stage="capture", path=self.origin
+                )
             if magic == NG_SHB:
                 records = self._pcapng(handle, magic)
             elif magic in MAGIC:
@@ -94,7 +96,9 @@ class PcapFileCapture:
         endian, divisor = MAGIC[magic]
         header = handle.read(20)
         if len(header) < 20:
-            raise MalformedHeaderError("truncated pcap global header", stage="capture", path=self.origin)
+            raise MalformedHeaderError(
+                "truncated pcap global header", stage="capture", path=self.origin
+            )
         _, _, _, _, snaplen, network = struct.unpack(endian + "HHiIII", header)
         linktype = network & 0xFFFF
         self.format = "pcap"
@@ -112,11 +116,14 @@ class PcapFileCapture:
             short = len(data) < cap_len
             if short:
                 self.warnings.append(
-                    f"record {ts_sec}.{ts_frac} declares {cap_len} captured bytes, {len(data)} present"
+                    f"record {ts_sec}.{ts_frac} declares {cap_len} captured bytes, "
+                    f"{len(data)} present"
                 )
             yield Record(ts_sec + ts_frac / divisor, linktype, data, orig_len, cap_len)
             if short:
-                self.warnings.append("stopping at the truncated record, the file position is unreliable")
+                self.warnings.append(
+                    "stopping at the truncated record, the file position is unreliable"
+                )
                 return
 
     def _pcapng(self, handle, first_block_type):

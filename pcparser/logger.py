@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sys
+from pathlib import Path
 
 DEFAULT_FLUSH_EVERY = 100
 
@@ -20,11 +21,13 @@ class JsonlWriter:
             self.flush_every = 1
             self.path = "-"
         else:
-            self._stream = open(path, "w", encoding="utf-8")
+            self._stream = Path(path).open("w", encoding="utf-8")
             self.flush_every = max(1, flush_every)
 
     def write(self, event: dict) -> None:
-        self._stream.write(json.dumps(event, ensure_ascii=False, separators=(",", ":"), default=str))
+        self._stream.write(
+            json.dumps(event, ensure_ascii=False, separators=(",", ":"), default=str)
+        )
         self._stream.write("\n")
         self.count += 1
         self._pending += 1

@@ -3,12 +3,12 @@ from __future__ import annotations
 from .capture.base import linktype_name
 from .errors import ErrorCollector, PacketParseError, TruncatedPacketError
 from .event import UNKNOWN, build_event
-from .payload import describe
 from .parsers import dns, http, smtp
 from .parsers.detector import detect
 from .parsers.link import parse_link
 from .parsers.network import parse_ipv4
 from .parsers.transport import parse_transport
+from .payload import describe
 
 UNKNOWN_POLICIES = ("emit", "skip")
 TRANSPORT_PROTOCOLS = (6, 17)

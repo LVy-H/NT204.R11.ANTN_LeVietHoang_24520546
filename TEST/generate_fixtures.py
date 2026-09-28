@@ -4,7 +4,7 @@ import struct
 from ipaddress import IPv4Address
 from pathlib import Path
 
-from scapy.all import DNS, DNSQR, DNSRR, Ether, IP, TCP, UDP, Raw, wrpcapng
+from scapy.all import DNS, DNSQR, DNSRR, IP, TCP, UDP, Ether, Raw, wrpcapng
 
 ROOT = Path(__file__).resolve().parent.parent
 FIXTURES = ROOT / "TEST" / "fixtures"
@@ -71,7 +71,9 @@ def ipv4_header(total_length, protocol, *, src=CLIENT, dst=SERVER, ihl=5, ttl=64
 
 def tcp_header(*, data_offset=5, flags=0x18, payload=b""):
     return (
-        struct.pack("!HHIIHHHH", CLIENT_PORT, SERVER_PORT, 1000, 0, (data_offset << 12) | flags, 8192, 0, 0)
+        struct.pack(
+            "!HHIIHHHH", CLIENT_PORT, SERVER_PORT, 1000, 0, (data_offset << 12) | flags, 8192, 0, 0
+        )
         + payload
     )
 
@@ -82,31 +84,48 @@ def write_pcap(path: Path, records, linktype=LINKTYPE_ETHERNET, snaplen=SNAPLEN)
         for index, record in enumerate(records):
             data, declared = record if isinstance(record, tuple) else (record, None)
             captured = len(data) if declared is None else declared
-            handle.write(struct.pack("<IIII", BASE_TIME + index, 100000 + index * 7919, captured, captured))
+            handle.write(
+                struct.pack("<IIII", BASE_TIME + index, 100000 + index * 7919, captured, captured)
+            )
             handle.write(data)
 
 
 def tcp_handshake():
     return [
         client_frame(ip(tcp(flags="S", seq=1000, ack=0))),
-        server_frame(ip(tcp(sport=SERVER_PORT, dport=CLIENT_PORT, flags="SA", seq=5000, ack=1001),
-                          src=SERVER, dst=CLIENT)),
+        server_frame(
+            ip(
+                tcp(sport=SERVER_PORT, dport=CLIENT_PORT, flags="SA", seq=5000, ack=1001),
+                src=SERVER,
+                dst=CLIENT,
+            )
+        ),
         client_frame(ip(tcp(flags="A", seq=1001, ack=5001))),
     ]
 
 
 def tcp_data():
     return [
-        client_frame(ip(tcp(flags="PA", seq=1001, ack=5001) / Raw(b"PAYLOAD-01: tcp data segment\n"))),
-        server_frame(ip(tcp(sport=SERVER_PORT, dport=CLIENT_PORT, flags="PA", seq=5001, ack=1030)
-                          / Raw(bytes(range(32))), src=SERVER, dst=CLIENT)),
+        client_frame(
+            ip(tcp(flags="PA", seq=1001, ack=5001) / Raw(b"PAYLOAD-01: tcp data segment\n"))
+        ),
+        server_frame(
+            ip(
+                tcp(sport=SERVER_PORT, dport=CLIENT_PORT, flags="PA", seq=5001, ack=1030)
+                / Raw(bytes(range(32))),
+                src=SERVER,
+                dst=CLIENT,
+            )
+        ),
     ]
 
 
 def udp_traffic():
     return [
         client_frame(ip(UDP(sport=40000, dport=40001) / Raw(b"udp payload one"))),
-        server_frame(ip(UDP(sport=40001, dport=40000) / Raw(bytes(range(64))), src=SERVER, dst=CLIENT)),
+        server_frame(
+            ip(UDP(sport=40001, dport=40000) / Raw(bytes(range(64))), src=SERVER, dst=CLIENT)
+        ),
         client_frame(ip(UDP(sport=40002, dport=40003))),
     ]
 
@@ -153,45 +172,108 @@ def http_response():
     )
     missing = b"HTTP/1.1 404 Not Found\r\nServer: nginx/1.24.0\r\nContent-Length: 0\r\n\r\n"
     return [
-        server_frame(ip(tcp(sport=SERVER_PORT, dport=CLIENT_PORT, flags="PA", seq=5001, ack=1001)
-                        / Raw(response), src=SERVER, dst=CLIENT)),
-        server_frame(ip(tcp(sport=SERVER_PORT, dport=CLIENT_PORT, flags="PA",
-                            seq=5001 + len(response), ack=1001) / Raw(missing), src=SERVER, dst=CLIENT)),
+        server_frame(
+            ip(
+                tcp(sport=SERVER_PORT, dport=CLIENT_PORT, flags="PA", seq=5001, ack=1001)
+                / Raw(response),
+                src=SERVER,
+                dst=CLIENT,
+            )
+        ),
+        server_frame(
+            ip(
+                tcp(
+                    sport=SERVER_PORT,
+                    dport=CLIENT_PORT,
+                    flags="PA",
+                    seq=5001 + len(response),
+                    ack=1001,
+                )
+                / Raw(missing),
+                src=SERVER,
+                dst=CLIENT,
+            )
+        ),
     ]
 
 
 def dns_query():
     return [
-        client_frame(ip(UDP(sport=40000, dport=DNS_PORT)
-                        / DNS(id=0x1234, rd=1, qd=DNSQR(qname="example.com", qtype="A")))),
-        client_frame(ip(UDP(sport=40000, dport=DNS_PORT)
-                        / DNS(id=0x1235, rd=1, qd=DNSQR(qname="mail.example.com", qtype="MX")))),
-        client_frame(ip(UDP(sport=40000, dport=DNS_PORT)
-                        / DNS(id=0x1236, rd=1, qd=DNSQR(qname="1.1.168.192.in-addr.arpa", qtype="PTR")))),
+        client_frame(
+            ip(
+                UDP(sport=40000, dport=DNS_PORT)
+                / DNS(id=0x1234, rd=1, qd=DNSQR(qname="example.com", qtype="A"))
+            )
+        ),
+        client_frame(
+            ip(
+                UDP(sport=40000, dport=DNS_PORT)
+                / DNS(id=0x1235, rd=1, qd=DNSQR(qname="mail.example.com", qtype="MX"))
+            )
+        ),
+        client_frame(
+            ip(
+                UDP(sport=40000, dport=DNS_PORT)
+                / DNS(id=0x1236, rd=1, qd=DNSQR(qname="1.1.168.192.in-addr.arpa", qtype="PTR"))
+            )
+        ),
     ]
 
 
 def dns_response():
     return [
-        server_frame(ip(UDP(sport=DNS_PORT, dport=40000)
-                        / DNS(id=0x1234, qr=1, aa=1, rd=1, ra=1,
-                              qd=DNSQR(qname="www.example.com", qtype="A"),
-                              an=[DNSRR(rrname="www.example.com", type="CNAME", ttl=300,
-                                        rdata=ename("example.com")),
-                                  DNSRR(rrname="example.com", type="A", ttl=300,
-                                        rdata="93.184.216.34")]),
-                        src=SERVER, dst=CLIENT)),
-        server_frame(ip(UDP(sport=DNS_PORT, dport=40000)
-                        / DNS(id=0x1237, qr=1, aa=1, rd=1, ra=1, rcode=3,
-                              qd=DNSQR(qname="does-not-exist.example.com", qtype="A")),
-                        src=SERVER, dst=CLIENT)),
+        server_frame(
+            ip(
+                UDP(sport=DNS_PORT, dport=40000)
+                / DNS(
+                    id=0x1234,
+                    qr=1,
+                    aa=1,
+                    rd=1,
+                    ra=1,
+                    qd=DNSQR(qname="www.example.com", qtype="A"),
+                    an=[
+                        DNSRR(
+                            rrname="www.example.com",
+                            type="CNAME",
+                            ttl=300,
+                            rdata=ename("example.com"),
+                        ),
+                        DNSRR(rrname="example.com", type="A", ttl=300, rdata="93.184.216.34"),
+                    ],
+                ),
+                src=SERVER,
+                dst=CLIENT,
+            )
+        ),
+        server_frame(
+            ip(
+                UDP(sport=DNS_PORT, dport=40000)
+                / DNS(
+                    id=0x1237,
+                    qr=1,
+                    aa=1,
+                    rd=1,
+                    ra=1,
+                    rcode=3,
+                    qd=DNSQR(qname="does-not-exist.example.com", qtype="A"),
+                ),
+                src=SERVER,
+                dst=CLIENT,
+            )
+        ),
     ]
 
 
 def smtp_command():
     return [
         client_frame(ip(tcp(flags="PA", seq=1001, ack=1) / Raw(b"EHLO client.example.test\r\n"))),
-        client_frame(ip(tcp(flags="PA", seq=1029, ack=1) / Raw(b"MAIL FROM:<alice@example.test> SIZE=1024\r\n"))),
+        client_frame(
+            ip(
+                tcp(flags="PA", seq=1029, ack=1)
+                / Raw(b"MAIL FROM:<alice@example.test> SIZE=1024\r\n")
+            )
+        ),
         client_frame(ip(tcp(flags="PA", seq=1071, ack=1) / Raw(b"RCPT TO:<bob@example.test>\r\n"))),
         client_frame(ip(tcp(flags="PA", seq=1098, ack=1) / Raw(b"DATA\r\n"))),
     ]
@@ -208,8 +290,14 @@ def smtp_response():
     seq = 5001
     for reply in replies:
         records.append(
-            server_frame(ip(tcp(sport=SMTP_PORT, dport=CLIENT_PORT, flags="PA", seq=seq, ack=1001)
-                            / Raw(reply), src=SERVER, dst=CLIENT))
+            server_frame(
+                ip(
+                    tcp(sport=SMTP_PORT, dport=CLIENT_PORT, flags="PA", seq=seq, ack=1001)
+                    / Raw(reply),
+                    src=SERVER,
+                    dst=CLIENT,
+                )
+            )
         )
         seq += len(reply)
     return records
@@ -220,18 +308,35 @@ def unknown_protocol():
         client_frame(ip(tcp(sport=40000, dport=9999) / Raw(NOISE))),
         server_frame(ip(tcp(sport=9999, dport=40000) / Raw(NOISE[:12]), src=SERVER, dst=CLIENT)),
         client_frame(ip(UDP(sport=40000, dport=4444) / Raw(NOISE))),
-        client_frame(ip(IP(src=CLIENT, dst=SERVER, proto=1) / Raw(b"\x08\x00\x00\x00\x00\x01\x00\x01"))),
+        client_frame(
+            ip(IP(src=CLIENT, dst=SERVER, proto=1) / Raw(b"\x08\x00\x00\x00\x00\x01\x00\x01"))
+        ),
         bytes(Ether(src=CLIENT_MAC, dst=OTHER_MAC, type=0x1234) / Raw(NOISE)),
         bytes(Ether(src=CLIENT_MAC, dst=OTHER_MAC, type=0x0806) / Raw(b"\x00" * 28)),
     ]
 
 
 def malformed():
-    ipv6 = bytes.fromhex("6000000000003a40" + "20010db8" + "00000000" + "00000000" + "00000001"
-                         + "20010db9" + "00000000" + "00000000" + "00000002")
-    dns_pointer_loop = bytes.fromhex("123401000001000000000000") + b"\xc0\x0c" + bytes.fromhex("00010001")
-    oversized_body = b"POST /upload HTTP/1.1\r\nHost: example.com\r\nContent-Length: 5000\r\n\r\nabc"
-    stored = client_frame(ip(tcp(flags="PA", seq=1001, ack=1) / Raw(b"declared 200 bytes, only 24 stored")))
+    ipv6 = bytes.fromhex(
+        "6000000000003a40"
+        + "20010db8"
+        + "00000000"
+        + "00000000"
+        + "00000001"
+        + "20010db9"
+        + "00000000"
+        + "00000000"
+        + "00000002"
+    )
+    dns_pointer_loop = (
+        bytes.fromhex("123401000001000000000000") + b"\xc0\x0c" + bytes.fromhex("00010001")
+    )
+    oversized_body = (
+        b"POST /upload HTTP/1.1\r\nHost: example.com\r\nContent-Length: 5000\r\n\r\nabc"
+    )
+    stored = client_frame(
+        ip(tcp(flags="PA", seq=1001, ack=1) / Raw(b"declared 200 bytes, only 24 stored"))
+    )
     return [
         b"\x02\x00\x00\x00\x00\x02",
         ETH_TO_SERVER + ipv4_header(40, 6, ihl=0) + tcp_header(),
@@ -239,7 +344,10 @@ def malformed():
         ETH_TO_SERVER + ipv4_header(40, 6) + tcp_header(data_offset=4),
         ETH_TO_SERVER + ipv4_header(30, 6) + tcp_header()[:10],
         ETH_TO_SERVER + ipv4_header(28, 17) + struct.pack("!HHHH", 40000, 40000, 4, 0),
-        ETH_TO_SERVER + ipv4_header(56, 17) + struct.pack("!HHHH", 40000, 40000, 100, 0) + b"only12bytes",
+        ETH_TO_SERVER
+        + ipv4_header(56, 17)
+        + struct.pack("!HHHH", 40000, 40000, 100, 0)
+        + b"only12bytes",
         ETH_TO_SERVER + ipv4_header(40, 6, ihl=8)[:24],
         ETH_TO_SERVER + ipv6,
         ETH_TO_SERVER + ipv4_header(10, 6) + tcp_header(),

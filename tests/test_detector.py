@@ -1,8 +1,15 @@
 import pytest
+from golden import (
+    DNS_ANSWER,
+    DNS_QUERY,
+    HTTP_GET,
+    HTTP_RESPONSE,
+    SMTP_EHLO,
+    SMTP_GREETING,
+    SMTP_MAIL_FROM,
+)
 
 from pcparser.parsers.detector import STANDARD_PORTS, detect
-
-from golden import DNS_ANSWER, DNS_QUERY, HTTP_GET, HTTP_RESPONSE, SMTP_EHLO, SMTP_GREETING, SMTP_MAIL_FROM
 
 NOISE = bytes(range(256))
 TLS_CLIENT_HELLO = b"\x16\x03\x01\x00\x2c\x01\x00\x00\x28\x03\x03" + bytes(range(32))
@@ -119,7 +126,9 @@ def test_tls_on_443_is_not_mistaken_for_http():
 
 
 def test_plain_text_on_an_unknown_port_is_unknown():
-    assert detect(b"hello world\r\n", src_port=40000, dst_port=40001, tcp=True).protocol == "UNKNOWN"
+    assert (
+        detect(b"hello world\r\n", src_port=40000, dst_port=40001, tcp=True).protocol == "UNKNOWN"
+    )
 
 
 @pytest.mark.parametrize("payload", [NOISE, b"\x00" * 64, b"\xff" * 64, DNS_QUERY, HTTP_GET])

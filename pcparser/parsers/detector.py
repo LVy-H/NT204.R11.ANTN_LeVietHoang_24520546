@@ -29,8 +29,34 @@ MIN_CONFIDENCE = 0.5
 PORT_ONLY_CONFIDENCE = 0.3
 
 SMTP_CODES = frozenset(
-    (211, 214, 220, 221, 250, 251, 252, 354, 421, 450, 451, 452, 455, 500, 501, 502, 503, 504, 530,
-     532, 550, 551, 552, 553, 554, 555)
+    (
+        211,
+        214,
+        220,
+        221,
+        250,
+        251,
+        252,
+        354,
+        421,
+        450,
+        451,
+        452,
+        455,
+        500,
+        501,
+        502,
+        503,
+        504,
+        530,
+        532,
+        550,
+        551,
+        552,
+        553,
+        554,
+        555,
+    )
 )
 
 HTTP_REQUEST_LINE = re.compile(
@@ -59,7 +85,9 @@ def _plausible_name(name: str) -> bool:
     if not name or name == ".":
         return False
     labels = name.rstrip(".").split(".")
-    return all(PLAUSIBLE_LABEL.match(label.encode("latin-1", "replace")) for label in labels if label)
+    return all(
+        PLAUSIBLE_LABEL.match(label.encode("latin-1", "replace")) for label in labels if label
+    )
 
 
 def http_score(payload: bytes) -> tuple[float, str | None]:

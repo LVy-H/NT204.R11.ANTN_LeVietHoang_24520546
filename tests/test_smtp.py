@@ -1,8 +1,4 @@
 import pytest
-
-from pcparser.errors import DecodeError
-from pcparser.parsers.smtp import first_line, parse
-
 from golden import (
     SMTP_EHLO,
     SMTP_GREETING,
@@ -11,6 +7,9 @@ from golden import (
     SMTP_RCPT_TO,
     SMTP_REJECT,
 )
+
+from pcparser.errors import DecodeError
+from pcparser.parsers.smtp import first_line, parse
 
 
 def test_ehlo_command():
@@ -111,7 +110,9 @@ def test_unknown_verb_is_unparsed_not_an_error():
     assert info["unparsed_lines"] == ["FROBNICATE now"]
 
 
-@pytest.mark.parametrize("payload", [b"", b"\x00\x01\x02\x03", b"random text here", b"999 nope\r\n"])
+@pytest.mark.parametrize(
+    "payload", [b"", b"\x00\x01\x02\x03", b"random text here", b"999 nope\r\n"]
+)
 def test_non_smtp_payloads_raise_decode_error(payload):
     with pytest.raises(DecodeError):
         parse(payload)

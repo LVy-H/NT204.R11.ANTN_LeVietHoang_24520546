@@ -1,11 +1,10 @@
 import struct
 
 import pytest
+from golden import DNS_ANSWER, DNS_POINTER_LOOP, DNS_QUERY, dns_name
 
 from pcparser.errors import DecodeError, TruncatedPacketError
 from pcparser.parsers.dns import parse, read_name
-
-from golden import DNS_ANSWER, DNS_POINTER_LOOP, DNS_QUERY, dns_name
 
 
 def record_bytes(name, rtype, rdata, ttl=60, rclass=1):
@@ -20,7 +19,13 @@ def message(identifier, flags, questions=(), answers=(), authorities=(), additio
         for item in section:
             body += record_bytes(*item)
     header = struct.pack(
-        "!HHHHHH", identifier, flags, len(questions), len(answers), len(authorities), len(additionals)
+        "!HHHHHH",
+        identifier,
+        flags,
+        len(questions),
+        len(answers),
+        len(authorities),
+        len(additionals),
     )
     return header + body
 
@@ -64,7 +69,11 @@ def test_name_compression_pointer_is_followed():
 @pytest.mark.parametrize(
     "rtype,rdata,expected",
     [
-        (28, bytes.fromhex("26062800022000012481893525c81946"), "2606:2800:220:1:2481:8935:25c8:1946"),
+        (
+            28,
+            bytes.fromhex("26062800022000012481893525c81946"),
+            "2606:2800:220:1:2481:8935:25c8:1946",
+        ),
         (5, dns_name("target.example.com"), "target.example.com"),
         (12, dns_name("host.example.com"), "host.example.com"),
         (2, dns_name("ns1.example.com"), "ns1.example.com"),
@@ -83,7 +92,9 @@ def test_mx_rdata():
 
 def test_srv_rdata():
     rdata = struct.pack("!HHH", 10, 60, 5060) + dns_name("sip.example.com")
-    info = parse(message(1, 0x8180, [("_sip._tcp.example.com", 33)], [("_sip._tcp.example.com", 33, rdata)]))
+    info = parse(
+        message(1, 0x8180, [("_sip._tcp.example.com", 33)], [("_sip._tcp.example.com", 33, rdata)])
+    )
     assert info["answers"][0]["value"] == {
         "priority": 10,
         "weight": 60,
@@ -99,7 +110,11 @@ def test_txt_rdata():
 
 
 def test_soa_rdata():
-    rdata = dns_name("ns.example.com") + dns_name("hostmaster.example.com") + struct.pack("!IIIII", 1, 2, 3, 4, 5)
+    rdata = (
+        dns_name("ns.example.com")
+        + dns_name("hostmaster.example.com")
+        + struct.pack("!IIIII", 1, 2, 3, 4, 5)
+    )
     info = parse(message(1, 0x8180, [("example.com", 6)], [("example.com", 6, rdata)]))
     assert info["answers"][0]["value"] == {
         "mname": "ns.example.com",
@@ -113,7 +128,9 @@ def test_soa_rdata():
 
 
 def test_unknown_rdata_is_hex_encoded():
-    info = parse(message(1, 0x8180, [("x.example.com", 99)], [("x.example.com", 99, b"\xde\xad\xbe\xef")]))
+    info = parse(
+        message(1, 0x8180, [("x.example.com", 99)], [("x.example.com", 99, b"\xde\xad\xbe\xef")])
+    )
     assert info["answers"][0]["rdata"] == "deadbeef"
     assert "value" not in info["answers"][0]
 

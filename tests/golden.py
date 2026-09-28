@@ -41,7 +41,8 @@ VLAN = bytes.fromhex(
 
 IPV4_OPTIONS = bytes.fromhex(
     "0200000000020200000000010800"
-    "470000300001000040064aa8" "0a0000010a000002"
+    "470000300001000040064aa8"
+    "0a0000010a000002"
     "0107070409090909"
     "000100020000000000000000500220007bdd0000"
 )
@@ -54,9 +55,7 @@ IPV4_MF = bytes.fromhex(
 )
 
 ICMP = bytes.fromhex(
-    "0200000000020200000000010800"
-    "4500001c00010000400166de0a0000010a000002"
-    "0800f7ff00010001"
+    "02000000000202000000000108004500001c00010000400166de0a0000010a0000020800f7ff00010001"
 )
 
 IPV6 = bytes.fromhex(
@@ -94,30 +93,44 @@ def dns_name(name: str) -> bytes:
 
 
 DNS_QUERY = (
-    bytes.fromhex("12340100") + bytes.fromhex("0001") + bytes.fromhex("0000") * 3 + dns_name("example.com")
-    + bytes.fromhex("0001") + bytes.fromhex("0001")
+    bytes.fromhex("12340100")
+    + bytes.fromhex("0001")
+    + bytes.fromhex("0000") * 3
+    + dns_name("example.com")
+    + bytes.fromhex("0001")
+    + bytes.fromhex("0001")
 )
 
 DNS_ANSWER = (
-    bytes.fromhex("12348180") + bytes.fromhex("0001") + bytes.fromhex("0001") + bytes.fromhex("0000") * 2
-    + dns_name("example.com") + bytes.fromhex("0001") + bytes.fromhex("0001")
-    + b"\xc0\x0c" + bytes.fromhex("0001") + bytes.fromhex("0001")
-    + bytes.fromhex("0000012c") + bytes.fromhex("0004") + bytes.fromhex("5db8d822")
+    bytes.fromhex("12348180")
+    + bytes.fromhex("0001")
+    + bytes.fromhex("0001")
+    + bytes.fromhex("0000") * 2
+    + dns_name("example.com")
+    + bytes.fromhex("0001")
+    + bytes.fromhex("0001")
+    + b"\xc0\x0c"
+    + bytes.fromhex("0001")
+    + bytes.fromhex("0001")
+    + bytes.fromhex("0000012c")
+    + bytes.fromhex("0004")
+    + bytes.fromhex("5db8d822")
 )
 
 DNS_POINTER_LOOP = (
-    bytes.fromhex("12340100") + bytes.fromhex("0001") + bytes.fromhex("0000") * 3
-    + b"\xc0\x0c" + bytes.fromhex("0001") + bytes.fromhex("0001")
+    bytes.fromhex("12340100")
+    + bytes.fromhex("0001")
+    + bytes.fromhex("0000") * 3
+    + b"\xc0\x0c"
+    + bytes.fromhex("0001")
+    + bytes.fromhex("0001")
 )
 
 SMTP_EHLO = b"EHLO client.example.test\r\n"
 SMTP_MAIL_FROM = b"MAIL FROM:<alice@example.test> SIZE=1024\r\n"
 SMTP_RCPT_TO = b"RCPT TO:<bob@example.test>\r\n"
 SMTP_MULTILINE = (
-    b"250-mail.example.test\r\n"
-    b"250-PIPELINING\r\n"
-    b"250-SIZE 10240000\r\n"
-    b"250 AUTH LOGIN PLAIN\r\n"
+    b"250-mail.example.test\r\n250-PIPELINING\r\n250-SIZE 10240000\r\n250 AUTH LOGIN PLAIN\r\n"
 )
 SMTP_GREETING = b"220 mail.example.test ESMTP Postfix\r\n"
 SMTP_REJECT = b"550 5.1.1 <bob@example.test>: Recipient address rejected\r\n"

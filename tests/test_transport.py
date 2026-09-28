@@ -1,11 +1,10 @@
 import pytest
+from golden import TCP_DATA, TCP_FIN, TCP_SYN_OPTIONS, UDP
 
 from pcparser.errors import MalformedHeaderError, TruncatedPacketError, UnsupportedProtocolError
 from pcparser.parsers.link import parse_link
 from pcparser.parsers.network import parse_ipv4
 from pcparser.parsers.transport import parse_transport
-
-from golden import TCP_DATA, TCP_FIN, TCP_SYN_OPTIONS, UDP
 
 
 def transport(frame, **overrides):
@@ -29,8 +28,15 @@ def test_syn_with_options():
     assert info["seq"] == 1000
     assert info["ack"] == 0
     assert info["flags"] == {
-        "fin": False, "syn": True, "rst": False, "psh": False,
-        "ack": False, "urg": False, "ece": False, "cwr": False, "ns": False,
+        "fin": False,
+        "syn": True,
+        "rst": False,
+        "psh": False,
+        "ack": False,
+        "urg": False,
+        "ece": False,
+        "cwr": False,
+        "ns": False,
     }
     assert info["flags_string"] == "S"
     assert info["flags_list"] == ["SYN"]
@@ -76,7 +82,9 @@ def test_udp_fields():
 def test_udp_zero_checksum_means_not_computed():
     raw = bytearray(UDP[14:][20:])
     raw[6:8] = b"\x00\x00"
-    info = parse_transport(17, bytes(raw), src_ip="10.0.0.1", dst_ip="10.0.0.2", declared_length=len(raw)).info
+    info = parse_transport(
+        17, bytes(raw), src_ip="10.0.0.1", dst_ip="10.0.0.2", declared_length=len(raw)
+    ).info
     assert info["checksum"] == "0x0000"
     assert info["checksum_valid"] is None
 
@@ -84,7 +92,9 @@ def test_udp_zero_checksum_means_not_computed():
 def test_checksum_is_not_verified_when_the_capture_is_short():
     link = parse_link(UDP, 1)
     net = parse_ipv4(link.payload)
-    info = parse_transport(17, net.payload[:12], src_ip="10.0.0.1", dst_ip="10.0.0.2", declared_length=17).info
+    info = parse_transport(
+        17, net.payload[:12], src_ip="10.0.0.1", dst_ip="10.0.0.2", declared_length=17
+    ).info
     assert info["checksum_valid"] is None
 
 
@@ -110,13 +120,23 @@ def test_tcp_header_shorter_than_twenty_bytes():
 
 
 def test_udp_length_below_eight_is_malformed():
-    header = bytes.fromhex("9c40") + bytes.fromhex("9c40") + bytes.fromhex("0004") + bytes.fromhex("0000")
+    header = (
+        bytes.fromhex("9c40")
+        + bytes.fromhex("9c40")
+        + bytes.fromhex("0004")
+        + bytes.fromhex("0000")
+    )
     with pytest.raises(MalformedHeaderError):
         parse_transport(17, header, src_ip="10.0.0.1", dst_ip="10.0.0.2")
 
 
 def test_udp_declared_length_longer_than_capture_is_flagged():
-    header = bytes.fromhex("9c40") + bytes.fromhex("9c40") + bytes.fromhex("0064") + bytes.fromhex("0000")
+    header = (
+        bytes.fromhex("9c40")
+        + bytes.fromhex("9c40")
+        + bytes.fromhex("0064")
+        + bytes.fromhex("0000")
+    )
     info = parse_transport(17, header + b"only12bytes!", src_ip="10.0.0.1", dst_ip="10.0.0.2").info
     assert info["captured_truncated"] is True
     assert info["declared_payload_length"] == 92

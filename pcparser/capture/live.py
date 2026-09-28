@@ -15,8 +15,7 @@ def scapy_module():
         import scapy.all as scapy_all
     except ImportError as exc:
         raise RuntimeError(
-            "scapy is required for live capture; install it with `uv sync` "
-            "or use --pcap"
+            "scapy is required for live capture; install it with `uv sync` or use --pcap"
         ) from exc
     return scapy_all
 

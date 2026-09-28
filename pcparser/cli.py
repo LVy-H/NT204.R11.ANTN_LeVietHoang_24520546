@@ -33,23 +33,40 @@ def build_parser() -> argparse.ArgumentParser:
         "--list-interfaces", "-L", action="store_true", help="list usable interfaces and exit"
     )
     parser.add_argument(
-        "--output", "-o", metavar="FILE", default="-", help="JSON Lines output file (default: stdout)"
+        "--output",
+        "-o",
+        metavar="FILE",
+        default="-",
+        help="JSON Lines output file (default: stdout)",
     )
-    parser.add_argument("--count", "-c", type=int, default=None, metavar="N", help="stop after N packets")
     parser.add_argument(
-        "--filter", dest="bpf_filter", metavar="EXPR", default=None,
+        "--count", "-c", type=int, default=None, metavar="N", help="stop after N packets"
+    )
+    parser.add_argument(
+        "--filter",
+        dest="bpf_filter",
+        metavar="EXPR",
+        default=None,
         help="BPF filter applied by the capture library (live capture only)",
     )
     parser.add_argument(
-        "--unknown-policy", choices=UNKNOWN_POLICIES, default="emit",
+        "--unknown-policy",
+        choices=UNKNOWN_POLICIES,
+        default="emit",
         help="emit packets with an undetected protocol, or skip them",
     )
     parser.add_argument(
-        "--idle-timeout", type=float, default=None, metavar="SECONDS",
+        "--idle-timeout",
+        type=float,
+        default=None,
+        metavar="SECONDS",
         help="stop live capture after N seconds without traffic",
     )
     parser.add_argument(
-        "--preview-limit", type=int, default=None, metavar="BYTES",
+        "--preview-limit",
+        type=int,
+        default=None,
+        metavar="BYTES",
         help="maximum number of payload bytes kept in the preview",
     )
     parser.add_argument("--stats", action="store_true", help="print a run summary to stderr")

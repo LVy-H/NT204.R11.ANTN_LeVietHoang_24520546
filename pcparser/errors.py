@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 __all__ = [
-    "PacketParseError",
-    "TruncatedPacketError",
-    "MalformedHeaderError",
-    "UnsupportedProtocolError",
     "DecodeError",
     "ErrorCollector",
+    "MalformedHeaderError",
+    "PacketParseError",
+    "TruncatedPacketError",
+    "UnsupportedProtocolError",
     "jsonable",
 ]
 

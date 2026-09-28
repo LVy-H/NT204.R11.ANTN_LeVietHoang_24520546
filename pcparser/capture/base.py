@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Iterator
 from dataclasses import dataclass
-from typing import Iterator, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 
 DLT_NULL = 0
 DLT_EN10MB = 1
@@ -51,7 +52,9 @@ class RawPacket:
 
     @property
     def truncated(self):
-        return self.declared_capture_length is not None and self.declared_capture_length > len(self.data)
+        return self.declared_capture_length is not None and self.declared_capture_length > len(
+            self.data
+        )
 
 
 @runtime_checkable

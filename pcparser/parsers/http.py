@@ -6,9 +6,8 @@ from urllib.parse import parse_qs, urlsplit
 from ..errors import DecodeError
 from ..payload import describe
 
-METHODS = frozenset(
-    b"GET POST PUT DELETE HEAD OPTIONS PATCH TRACE CONNECT PROPFIND PROPPATCH MKCOL COPY MOVE LOCK UNLOCK".split()
-)
+METHODS = frozenset(b"GET POST PUT DELETE HEAD OPTIONS PATCH TRACE CONNECT PROPFIND".split())
+METHODS |= frozenset(b"PROPPATCH MKCOL COPY MOVE LOCK UNLOCK".split())
 
 REQUEST_LINE = re.compile(rb"^([A-Z]{3,12})[ \t]+(\S+)[ \t]+HTTP/(\d+\.\d+)$")
 STATUS_LINE = re.compile(rb"^HTTP/(\d+\.\d+)[ \t]+(\d{3})(?:[ \t]+(.*))?$")
@@ -44,7 +43,9 @@ def _headers(block: bytes, errors: list[dict]) -> tuple[dict, list[str]]:
         continuation = CONTINUATION.match(raw)
         if continuation and order:
             last = order[-1]
-            headers[last][-1] = f"{headers[last][-1]} {continuation.group(1).decode('latin-1').strip()}"
+            headers[last][-1] = (
+                f"{headers[last][-1]} {continuation.group(1).decode('latin-1').strip()}"
+            )
             continue
         match = HEADER_LINE.match(raw)
         if not match:
@@ -147,7 +148,7 @@ def _target(uri: str) -> dict:
         "uri": uri,
         "path": parts.path,
         "query": parts.query,
-        "query_params": {name: values for name, values in query.items()},
+        "query_params": dict(query),
         "authority": parts.netloc,
         "scheme": parts.scheme or None,
     }
@@ -180,7 +181,9 @@ def parse(payload: bytes) -> dict:
     headers, order = _headers(block, errors)
     info: dict = {
         "version": version.decode("ascii"),
-        "headers": {name: (values[0] if len(values) == 1 else values) for name, values in headers.items()},
+        "headers": {
+            name: (values[0] if len(values) == 1 else values) for name, values in headers.items()
+        },
         "header_order": order,
         "header_count": len(order),
         "host": _last(headers, "host"),
@@ -206,7 +209,7 @@ def parse(payload: bytes) -> dict:
             form_length = _int_or_none(_last(headers, "content-length"))
             raw_form = rest[:form_length] if form_length is not None else rest
             form = parse_qs(raw_form.decode("latin-1", "replace"), keep_blank_values=True)
-            info["form"] = {name: values for name, values in form.items()}
+            info["form"] = dict(form)
     else:
         info["kind"] = "response"
         info["status_code"] = int(status.group(2))

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import struct
-from ipaddress import IPv6Address, ip_address
+from ipaddress import ip_address
 
 from ..errors import DecodeError, TruncatedPacketError
 
@@ -84,21 +84,30 @@ def read_name(data: bytes, offset: int) -> tuple[str, int]:
             break
         if length & 0xC0 == 0xC0:
             if offset + 2 > len(data):
-                raise DecodeError("truncated DNS compression pointer", stage="application", offset=offset)
+                raise DecodeError(
+                    "truncated DNS compression pointer", stage="application", offset=offset
+                )
             pointer = ((length & 0x3F) << 8) | data[offset + 1]
             if end is None:
                 end = offset + 2
             jumps += 1
             if jumps > MAX_POINTER_JUMPS:
-                raise DecodeError("DNS compression pointer loop", stage="application", offset=offset)
+                raise DecodeError(
+                    "DNS compression pointer loop", stage="application", offset=offset
+                )
             offset = pointer
             continue
         if length & 0xC0:
             raise DecodeError(
-                "invalid DNS label length byte", stage="application", offset=offset, value=hex(length)
+                "invalid DNS label length byte",
+                stage="application",
+                offset=offset,
+                value=hex(length),
             )
         if offset + 1 + length > len(data):
-            raise DecodeError("truncated DNS label", stage="application", offset=offset, label_length=length)
+            raise DecodeError(
+                "truncated DNS label", stage="application", offset=offset, label_length=length
+            )
         labels.append(data[offset + 1 : offset + 1 + length].decode("latin-1"))
         offset += 1 + length
     return ".".join(labels) if labels else ".", end
@@ -166,7 +175,10 @@ def _read_record(data: bytes, offset: int) -> tuple[dict, int]:
     name, offset = read_name(data, offset)
     if offset + 10 > len(data):
         raise TruncatedPacketError(
-            "DNS resource record header truncated", stage="application", offset=offset, captured=len(data)
+            "DNS resource record header truncated",
+            stage="application",
+            offset=offset,
+            captured=len(data),
         )
     rtype, rclass, ttl, rdlength = struct.unpack_from("!HHIH", data, offset)
     offset += 10
@@ -203,11 +215,14 @@ def _read_record(data: bytes, offset: int) -> tuple[dict, int]:
 def parse(data: bytes, *, tcp: bool = False) -> dict:
     if tcp:
         if len(data) < 2:
-            raise TruncatedPacketError("DNS over TCP message has no length prefix", stage="application")
+            raise TruncatedPacketError(
+                "DNS over TCP message has no length prefix", stage="application"
+            )
         declared = struct.unpack_from("!H", data, 0)[0]
         if declared < HEADER_LENGTH:
             raise DecodeError(
-                f"DNS over TCP length prefix {declared} is below the header size", stage="application"
+                f"DNS over TCP length prefix {declared} is below the header size",
+                stage="application",
             )
         if declared > len(data) - 2:
             raise TruncatedPacketError(
