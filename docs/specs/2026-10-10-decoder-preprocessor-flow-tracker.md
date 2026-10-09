@@ -94,7 +94,7 @@ main.py
   to a stage (`issues.scoped("application")`).
 - The runner catches `ParseError` and stamps the stage it was running. Any other exception
   becomes `Issue(stage, "internal_error", str(exc), {"exception": type name})`.
-- Codes in use: `truncated`, `malformed_header`, `unsupported`, `decode_error`,
+- Codes in use: `truncated_packet`, `malformed_header`, `unsupported_protocol`, `decode_error`,
   `truncated_body`, `incomplete_message`, `invalid_content_length`, `malformed_header_line`,
   `incomplete_reply`, `missing_field`, `invalid_type`, `invalid_json`, `unsupported_schema`,
   `internal_error`.
@@ -149,7 +149,8 @@ payload with no command or reply line is DATA content, not a decode error.
 ### 6.4 Tolerant decode (`codec.decode`)
 
 - Signature: `decode(obj: object) -> tuple[PacketEvent, list[Issue]]`; never raises.
-- Missing key → field `None` + `Issue("load", "missing_field", field=path)`.
+- Missing key → field default (`None` / `[]`), no issue; the Preprocessor reports missing
+  required fields as `missing_field:<name>` reasons.
 - Wrong type, bad base64, unparsable number → field `None` + `Issue("load", "invalid_type")`.
 - `schema_version != 2` or unknown `record_type` → `Issue("load", "unsupported_schema")`; the
   decoder still extracts what it can.
