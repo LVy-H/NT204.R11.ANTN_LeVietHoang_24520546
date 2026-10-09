@@ -1,30 +1,39 @@
-# PCP: Packet Capture & Parser cho hệ thống IDS/IPS
+# IDS/IPS bằng Python
 
-Bài tập 1. Module thu thập packet từ live traffic hoặc file PCAP, phân tích
-IPv4, TCP, UDP, HTTP/1.x, DNS, SMTP và xuất ra event JSON Lines chuẩn hoá để
-các bài tập IDS sau chỉ việc đọc event, không cần đụng packet thô.
+Hệ thống phát hiện xâm nhập (IDS) viết bằng Python, được xây dựng dần theo từng module.
+Mỗi module chỉ đọc output chuẩn hoá của module đứng trước, nên các tầng phía sau
+(Detection Engine, cảnh báo) không cần truy cập packet thô hay Scapy.
+
+## Kiến trúc
 
 ```
-Raw Packet → Network Parser → Transport Parser → Application Detector
-           → Application Parser → Normalized IDS Event
+Live interface / PCAP
+  → Capture → Parser → Decoder → Preprocessor → Flow/Connection Tracker
+  → Feature Extractor → Detection Engine → Alert
 ```
 
-Cả hai nguồn dùng cùng một pipeline. Scapy chỉ làm I/O cho live capture rồi
-chuyển ngay thành bytes; file PCAP do reader tự viết trong `pcparser/capture/pcap.py`
-đọc (hỗ trợ cả `.pcap` và `.pcapng`, không cần Scapy).
+| Module | Vai trò | Trạng thái |
+|---|---|---|
+| Capture | Bắt packet từ interface (Scapy) hoặc đọc `.pcap` / `.pcapng` bằng reader tự viết; cả hai nguồn đi chung một pipeline | Hoàn thành |
+| Parser | Ethernet / VLAN / Linux SLL, IPv4, TCP, UDP, HTTP/1.x, DNS, SMTP; nhận diện application protocol bằng port + chữ ký payload | Hoàn thành |
+| Decoder | URL / percent-encoding, form-urlencoded, HTML entity, MIME Base64 / Quoted-Printable, ASCII / UTF-8 | Đang phát triển |
+| Preprocessor | Kiểm tra field, chuẩn hoá protocol / IP / domain / header / URI / timestamp, gắn trạng thái valid / partial / invalid | Đang phát triển |
+| Flow/Connection Tracker | Gom packet thành flow hai chiều theo 5-tuple, theo dõi trạng thái TCP, idle timeout, thống kê theo flow | Đang phát triển |
+| Feature Extractor | Trích xuất đặc trưng từ flow cho Detection Engine | Dự kiến |
+| Detection Engine, Alert | Phát hiện tấn công và sinh cảnh báo | Dự kiến |
 
 ## Cài đặt
 
 ```bash
 uv sync                          # dùng uv.lock, cố định phiên bản Scapy
-pip install -r requirements.txt  # hoặc dùng pip, cần Python >= 3.10
+pip install -r requirements.txt  # hoặc pip, cần Python >= 3.10
 ```
 
 ## Chạy
 
 ```bash
 python main.py --interface eth0           # live capture
-python main.py --pcap test.pcap           # đọc file PCAP
+python main.py --pcap test.pcap           # đọc file PCAP / PCAPNG
 python main.py --list-interfaces          # liệt kê interface
 ```
 
@@ -32,45 +41,69 @@ python main.py --list-interfaces          # liệt kê interface
 |---|---|
 | `--interface`, `-i` | Bắt live traffic từ interface |
 | `--pcap`, `-r` | Đọc từ file `.pcap` / `.pcapng` |
+| `--list-interfaces`, `-L` | Liệt kê interface rồi thoát |
 | `--output`, `-o` | File JSON Lines (mặc định `-` = stdout) |
 | `--count`, `-c` | Dừng sau N packet |
-| `--unknown-policy` | `emit` (mặc định) hoặc `skip` packet không nhận diện được |
+| `--filter` | BPF filter (chỉ live capture) |
+| `--unknown-policy` | `emit` (mặc định) hoặc `skip` packet không nhận diện được protocol |
+| `--idle-timeout` | Dừng live capture sau N giây không có traffic |
+| `--preview-limit` | Số byte payload tối đa giữ trong `preview` |
 | `--stats` | In thống kê tổng kết ra stderr |
+| `--quiet`, `-q` | Tắt thông báo tiến độ |
 
-Live capture cần `CAP_NET_RAW` (chạy bằng `sudo` hoặc `setcap`). Sau `uv sync` có
-thể gọi `python main.py ...` hoặc console script `pcparser`.
+Live capture cần `CAP_NET_RAW` (chạy bằng `sudo` hoặc `setcap`). Sau `uv sync` có thể
+gọi `python main.py ...` hoặc console script `pcparser`.
 
 ## Output
 
-Mỗi dòng JSON là một packet, với các khoá: `packet_id`, `timestamp`, `event_type`,
-`network_protocol` / `transport_protocol` / `application_protocol`, `src_ip` /
-`dst_ip` / `src_port` / `dst_port`, `capture`, `link`, `network`, `transport`,
-`application`, `payload`, `errors`.
+Mỗi dòng JSON là một event ứng với một packet, gồm `packet_id`, `timestamp`,
+`event_type`, `network_protocol` / `transport_protocol` / `application_protocol`,
+`src_ip` / `dst_ip` / `src_port` / `dst_port` và các khối chi tiết `capture`, `link`,
+`network`, `transport`, `application`, `payload`, `errors`.
 
-Ví dụ: `TEST/case-04-http-get/output.jsonl` và `TEST/case-12-malformed/output.jsonl`.
-`event_type` cho biết packet đã parse tới đâu (`http_request`, `dns_response`,
-`tcp_segment`, `unknown_payload`, `network_only`, `unparsed`, …). Lỗi nằm trong
-`errors[]` kèm `stage`/`code`, nên không packet lỗi nào làm chương trình dừng.
+`event_type` cho biết packet đã được xử lý tới đâu (`http_request`, `dns_response`,
+`tcp_segment`, `unknown_payload`, `network_only`, `unparsed`, …). Lỗi ở mọi tầng được
+ghi vào `errors[]` kèm `stage` / `code`; một packet lỗi không làm dừng chương trình.
 
-## Nhận diện application protocol
+Port chỉ là tín hiệu phụ khi nhận diện application protocol, chữ ký payload mới quyết
+định, nên HTTP trên port không chuẩn vẫn được nhận đúng. Lý do quyết định nằm trong
+`application.detection` (`method`, `confidence`, `evidence`, `scores`).
 
-Port chỉ là tín hiệu cộng thêm, chữ ký payload mới quyết định, nên HTTP trên port
-không chuẩn vẫn nhận diện đúng. Quyết định và điểm của từng protocol được ghi lại
-trong `application.detection` (`method`, `confidence`, `evidence`, `scores`).
+Ví dụ output: `TEST/case-04-http-get/output.jsonl`, `TEST/case-12-malformed/output.jsonl`.
 
-## Test
+## Cấu trúc repo
+
+```
+main.py              entrypoint
+pcparser/
+  capture/           live capture và reader pcap / pcapng
+  parsers/           link, IPv4, TCP / UDP, HTTP, DNS, SMTP, detector
+  pipeline.py        ghép các tầng thành một pipeline xử lý packet
+  event.py           event chuẩn hoá
+  cli.py             tham số dòng lệnh
+tests/               unit test (pytest)
+TEST/                fixture, lệnh chạy và kết quả của từng test case
+```
+
+## Kiểm thử
 
 ```bash
 uv run pytest            # unit test
-sh TEST/run_cases.sh     # chạy lại 12 test case bắt buộc + 1 case pcapng
+sh TEST/run_cases.sh     # chạy lại toàn bộ test case, ghi kết quả vào TEST/
 ```
 
-Chi tiết từng case và kết quả mong đợi: `TEST/README.md`.
+Danh sách case, fixture và kết quả mong đợi: `TEST/README.md`.
 
-## Hạn chế
+## Quy trình phát triển
 
-Không ghép lại TCP stream (mỗi event là một packet); chỉ hỗ trợ IPv4; HTTP/1.x
-không giải mã TLS và không giải mã `chunked`.
+- Mỗi task (một module hoặc một chức năng nhỏ) được commit riêng ngay khi hoàn thành.
+- Mỗi test case được commit riêng cùng kết quả chạy trong `TEST/`.
+- Lịch sử commit không bị sửa hay viết lại.
+
+## Hạn chế hiện tại
+
+Chưa ghép lại TCP stream (mỗi event là một packet); chỉ hỗ trợ IPv4; không giải mã TLS
+và không giải mã HTTP `chunked`.
 
 ## Khai báo sử dụng AI
 
