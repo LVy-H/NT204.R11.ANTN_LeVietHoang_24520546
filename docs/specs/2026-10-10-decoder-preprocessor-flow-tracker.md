@@ -323,12 +323,13 @@ gap between packets stays within `--udp-idle-timeout`.
 - Clock = maximum packet timestamp seen; in live mode also `Tick(now)` from the source about
   once per second while idle. The clock never moves backwards; `last_seen` is a maximum.
 - Three `OrderedDict` lanes ordered by last activity: `tcp_open`, `tcp_closed`, `udp`. On
-  every packet and tick, flows at the front of each lane whose timeout has elapsed are
-  exported and removed.
+  every packet and tick, flows at the front of each lane whose idle time is strictly greater
+  than the lane timeout (`clock - last_activity > timeout`) are exported and removed.
 - Defaults: `--tcp-idle-timeout 300`, `--udp-idle-timeout 60`, `--tcp-closed-timeout 5`.
 - `--max-flows` (default 100000): when exceeded, the least recently active flow across lanes
   is exported with `end_reason = evicted`.
-- End of input: every remaining flow is exported with `end_reason = end_of_input`.
+- End of input: open TCP and UDP flows are exported with `end_reason = end_of_input`; flows
+  already in the closed lane keep `closed` / `reset`.
 
 ### 9.5 Expiry before the triggering packet
 
@@ -459,7 +460,7 @@ are handwritten.
 | T11 | pcap: three interleaved flows (two TCP clients to one server, one UDP) | three flow ids; per-flow counts match |
 | T12 | pcap: UDP flow, then a packet of another flow 61 s later | first flow exported `idle_timeout` before the later packet; active table no longer contains it |
 | T13 | pcap: TCP session with known packet/flag mix both ways | exact packet, byte, payload byte, flag counts and duration |
-| T14 | JSONL: non-JSON line, wrong types, port 70000, missing `src_ip`, `schema_version: 9`, unknown `record_type` | each yields a record with `preprocess_status = invalid` and matching `reason`; run completes, exit 0 |
+| T14 | JSONL: non-JSON line, wrong types, port 70000, missing `src_ip`, `schema_version: 9`, unknown `record_type` | each yields one record with a matching `reason`: `invalid` when a required field is broken, `partial` (`load/unsupported_schema`) for an unknown schema version or record type; run completes, exit 0 |
 
 ## 12. Documentation
 
@@ -472,20 +473,18 @@ are handwritten.
 
 ## 13. Delivery order and commits
 
-One commit per task, one per test case:
+One commit per task, one per test case. The task-level breakdown lives in
+`docs/plans/2026-10-10-*.md` (shared contract: `docs/plans/2026-10-10-interfaces.md`):
 
-1. Rename package `pcparser` → `ids` (mechanical).
-2. Typed model + `Issue` + codec.
-3. Parser migration, one commit per layer (link, network, transport, http, dns, smtp,
-   detector + registry), capture sources, runner, sink, stats, CLI.
-4. Move `TEST/` cases to `TEST/capture-parser/`, then regenerate each case (13 commits).
-5. Decoder: text, url/form, html, mime, stage.
-6. Preprocessor: validation, normalization, policies.
-7. Flow tracker: key/id, TCP state machine, UDP + expiry lanes, statistics/records, SMTP DATA
-   reassembly, live `Tick`.
-8. JSONL events source.
-9. Fixture generator for `TEST/flow-tracker/`, then T01-T14 (14 commits).
-10. Docs: schema reference, READMEs, AI disclosure.
+| Plan | Content | Commits |
+|---|---|---|
+| 1a | Rename `pcparser` → `ids`; `Issue`; typed model; `make_payload`; codec encode / decode | 6 |
+| 1b | Parser migration, one commit per layer (link, network, transport, http, dns, smtp, registry + detector) | 7 |
+| 1c | Capture sources, `PacketParser`, stats, runner, sink, CLI, JSONL events source, move `TEST/` cases to `TEST/capture-parser/` | 8 |
+| 2 | Decoder: text, url/form, html, mime, stage | 5 |
+| 3 | Preprocessor: normalization, validation, stage + policies | 3 |
+| 4 | Flow tracker: key/id, TCP state machine, records, expiry lanes, SMTP DATA reassembly, stage + live `Tick` + CLI | 6 |
+| 5 | Flow-tracker fixture generator + harness, T01–T14 (one commit each), regenerate the 13 capture-parser cases (one commit each), outcome guard, docs | 32 |
 
 ## 14. Risks
 
