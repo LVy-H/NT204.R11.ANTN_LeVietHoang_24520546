@@ -157,9 +157,16 @@ def test_missing_file_raises_oserror(tmp_path):
         list(EventsSource(tmp_path / "missing.jsonl").items())
 
 
-def test_deeply_nested_line_is_a_stub(tmp_path):
-    depth = 1_000_000  # deep enough for RecursionError on every supported CPython
-    path = write_lines(tmp_path, "[" * depth + "]" * depth, '{"packet_id": 2}')
+def test_recursion_error_line_is_a_stub(tmp_path, monkeypatch):
+    real_loads = json.loads
+
+    def loads(line, **kwargs):
+        if line.startswith(b"[[deep"):
+            raise RecursionError("maximum recursion depth exceeded")
+        return real_loads(line, **kwargs)
+
+    monkeypatch.setattr("ids.capture.events.json.loads", loads)
+    path = write_lines(tmp_path, "[[deep]]", '{"packet_id": 2}')
     _, events = load(path)
     assert [event.packet_id for event in events] == [1, 2]
     assert [codes(event) for event in events] == [[("load", "invalid_json")], []]
