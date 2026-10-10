@@ -125,8 +125,6 @@ class SmtpReassembler:
             if short:
                 self._tail = b""  # the missing bytes break the terminator search
             return None
-        if packet_id is not None:
-            self._packet_ids.append(packet_id)
         if self._start is None:
             self._start = timestamp
         self._end = timestamp
@@ -143,10 +141,11 @@ class SmtpReassembler:
         body = data if cut < 0 else data[:cut]
         room = self._max_bytes - len(self._buffer)
         if len(body) > room:
-            self._buffer += body[:room]
             self._truncated = True
-        else:
-            self._buffer += body
+        stored = body[:room]
+        if stored and packet_id is not None:
+            self._packet_ids.append(packet_id)  # only packets that contribute stored bytes
+        self._buffer += stored
         self._seen += len(body)
         self._tail = body[-4:] if len(body) >= 4 else (prefix + body)[-4:]
         if short:

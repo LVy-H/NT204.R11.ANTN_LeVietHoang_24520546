@@ -247,7 +247,7 @@ An SMTP DATA body reassembled from the client segments that follow `DATA` / `354
 | `message_id` | str | `<flow_id>-<n>`, `n` 1-based per flow |
 | `flow_id` | str | Flow the message belongs to |
 | `protocol` | str | `SMTP` |
-| `packet_ids` | list[int] | Packets that contributed bytes |
+| `packet_ids` | list[int] | Packets that contributed bytes to `data_b64` (none once `--max-message-bytes` is reached) |
 | `start_time`, `end_time` | float | First and last contributing packet |
 | `data_b64` | str | Body bytes as sent, terminator `\r\n.\r\n` included, base64 |
 | `complete` | bool | Terminator seen; `false` when the flow ended first |

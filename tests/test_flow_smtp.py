@@ -149,6 +149,20 @@ def test_terminator_straddling_segments_is_found_after_the_cap():
     assert (message.truncated, message.complete) == (True, True)
 
 
+def test_packets_after_the_cap_are_not_listed_in_the_message():
+    exchange = Exchange(max_bytes=12)
+    exchange.start()
+    assert exchange.client(b"0123456789") is None  # packet 3, fully stored
+    assert exchange.client(b"abcdef") is None  # packet 4, first two bytes stored
+    for _ in range(50):
+        assert exchange.client(b"discarded body bytes\r\n") is None  # packets 5-54
+    message = exchange.client(b".\r\n")  # packet 55
+    assert message.data == b"0123456789ab"
+    assert (message.truncated, message.complete) == (True, True)
+    assert message.packet_ids == [3, 4]
+    assert message.end_time == T0 + 55
+
+
 def test_flow_end_during_collection_gives_an_incomplete_message():
     exchange = Exchange()
     exchange.start()
