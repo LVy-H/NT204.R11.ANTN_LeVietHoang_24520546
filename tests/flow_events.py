@@ -99,6 +99,7 @@ def make_table(**overrides) -> FlowTable:
         "udp_idle_timeout": 60.0,
         "tcp_closed_timeout": 5.0,
         "max_flows": 100,
+        "max_message_bytes": 1_048_576,
     }
     config.update(overrides)
     return FlowTable(**config)

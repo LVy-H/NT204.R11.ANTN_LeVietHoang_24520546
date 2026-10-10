@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 from ..model import Endpoint, EndReason, FlowRef, PacketEvent, TcpState
 from .key import FlowKey
 from .records import FlowState
+from .smtp import SmtpReassembler
 from .tcp import TERMINAL_STATES, is_new_syn
 
 if TYPE_CHECKING:
@@ -36,12 +37,14 @@ class FlowTable:
         udp_idle_timeout: float,
         tcp_closed_timeout: float,
         max_flows: int,
+        max_message_bytes: int,
     ) -> None:
         self.tcp_open: Lane = OrderedDict()
         self.tcp_closed: Lane = OrderedDict()
         self.udp: Lane = OrderedDict()
         self.clock: float | None = None
         self.max_flows = max_flows
+        self.max_message_bytes = max_message_bytes
         self._lanes = (self.tcp_open, self.tcp_closed, self.udp)
         self._timeouts = (
             (self.tcp_open, tcp_idle_timeout),
@@ -80,7 +83,15 @@ class FlowTable:
                 flow = self._create(lane, key, src, dst, event, timestamp, emit)
             else:
                 lane.move_to_end(key)
-        ref = flow.add(event, src == flow.record.endpoint_a, timestamp, now)
+        forward = src == flow.record.endpoint_a
+        ref = flow.add(event, forward, timestamp, now)
+        if flow.tcp is not None:
+            if flow.smtp is None and flow.record.application_protocol == "SMTP":
+                flow.smtp = SmtpReassembler(flow.record.flow_id, self.max_message_bytes)
+            if flow.smtp is not None:
+                message = flow.smtp.feed(event, forward, timestamp)
+                if message is not None:
+                    emit(message)
         if lane is self.tcp_open and ref.state in TERMINAL_STATES:
             del self.tcp_open[key]
             self.tcp_closed[key] = flow
@@ -167,4 +178,8 @@ class FlowTable:
         return _closed_reason(flow) if lane is self.tcp_closed else default
 
     def _export(self, flow: FlowState, reason: EndReason, emit: Emit) -> None:
+        if flow.smtp is not None:
+            message = flow.smtp.finish()
+            if message is not None:
+                emit(message)  # an unfinished DATA body goes out before its flow record
         emit(flow.finish(reason))

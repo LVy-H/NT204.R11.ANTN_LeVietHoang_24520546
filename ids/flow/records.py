@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import math
+from typing import TYPE_CHECKING
 
 from ..model import Direction, Endpoint, EndReason, FlowRecord, FlowRef, PacketEvent, TcpInfo
 from ..model.event import UNKNOWN
 from .key import FlowKey, flow_id
 from .tcp import TcpConnection, is_syn_ack
+
+if TYPE_CHECKING:
+    from .smtp import SmtpReassembler
 
 PAYLOAD_METHODS = frozenset({"payload", "port+payload"})
 
@@ -42,7 +46,7 @@ def payload_bytes(event: PacketEvent) -> int:
 class FlowState:
     """Mutable per-flow state. `record` is filled in place and handed out by `finish`."""
 
-    __slots__ = ("_app_rank", "key", "record", "tcp", "touched")
+    __slots__ = ("_app_rank", "key", "record", "smtp", "tcp", "touched")
 
     def __init__(
         self, key: FlowKey, src: Endpoint, dst: Endpoint, event: PacketEvent, timestamp: float
@@ -68,6 +72,7 @@ class FlowState:
         )
         self.touched = timestamp  # tracker clock at the latest packet; drives expiry
         self._app_rank: tuple[int, float] | None = None
+        self.smtp: SmtpReassembler | None = None  # set by the table once the flow is SMTP
 
     def add(self, event: PacketEvent, forward: bool, timestamp: float, now: float) -> FlowRef:
         """Account one packet sent in `forward` (A→B) or backward direction; `now` = clock."""
