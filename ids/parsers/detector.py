@@ -3,7 +3,6 @@ from __future__ import annotations
 import re
 from collections import namedtuple
 
-from ..errors import PacketParseError
 from . import dns, http, smtp
 
 STANDARD_PORTS = {
@@ -66,57 +65,9 @@ SMTP_VERB = re.compile(
 )
 SMTP_STATUS_LINE = re.compile(rb"^([2-5]\d{2})([ -]|$)")
 
-PLAUSIBLE_LABEL = re.compile(rb"^[A-Za-z0-9_-]{1,63}$")
-
 Detection = namedtuple(
     "Detection", "protocol method confidence port_matched port_hint evidence scores"
 )
-
-
-def _plausible_name(name: str) -> bool:
-    if not name or name == ".":
-        return False
-    labels = name.rstrip(".").split(".")
-    return all(
-        PLAUSIBLE_LABEL.match(label.encode("latin-1", "replace")) for label in labels if label
-    )
-
-
-def dns_score(payload: bytes, tcp: bool) -> tuple[float, str | None]:
-    if tcp:
-        if len(payload) < 14:
-            return 0.0, None
-        declared = int.from_bytes(payload[:2], "big")
-        if declared < 12 or declared + 2 > len(payload):
-            return 0.0, None
-    elif len(payload) < 12:
-        return 0.0, None
-
-    try:
-        message = dns.parse(payload, tcp=tcp)
-    except PacketParseError:
-        return 0.0, None
-
-    if message["opcode"] not in dns.OPCODES:
-        return 0.2, "DNS header with an unknown opcode"
-
-    score = 0.45
-    evidence = ["DNS header"]
-    questions = message["questions"]
-    if questions:
-        question = questions[0]
-        if _plausible_name(question["name"]):
-            score += 0.25
-            evidence.append("plausible question name")
-        if question["type"] in dns.QTYPES:
-            score += 0.15
-            evidence.append(f"known qtype {question['type_name']}")
-        if question["class"] in dns.QCLASSES:
-            score += 0.05
-    if message["kind"] == "response" and message["counts"]["answers"]:
-        score += 0.10
-        evidence.append("response with answers")
-    return min(score, 1.0), ", ".join(evidence)
 
 
 def smtp_score(payload: bytes) -> tuple[float, str | None]:
@@ -144,7 +95,7 @@ def detect(payload: bytes, *, src_port=None, dst_port=None, tcp: bool = False) -
     evidence: dict[str, str | None] = {}
     for name, (score, why) in (
         ("HTTP", http.score(payload, tcp)),
-        ("DNS", dns_score(payload, tcp)),
+        ("DNS", dns.score(payload, tcp)),
         ("SMTP", smtp_score(payload)),
     ):
         scores[name] = score
