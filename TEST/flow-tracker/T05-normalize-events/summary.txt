@@ -1,0 +1,53 @@
+source: events TEST/flow-tracker/fixtures/T05-normalize-events.jsonl
+wrote 6 records from 4 packets (0 dropped, 0 skipped, 0 with issues)
+{
+  "packets_seen": 4,
+  "records_written": {
+    "packet": 4,
+    "message": 0,
+    "flow": 2
+  },
+  "dropped": 0,
+  "skipped": 0,
+  "packets_with_issues": 0,
+  "first_timestamp": 1759000000.5,
+  "last_timestamp": 1759000001.0,
+  "event_types": {
+    "http_request": 3,
+    "dns_query": 1
+  },
+  "protocols": {
+    "TCP": 3,
+    "UDP": 1
+  },
+  "application_protocols": {
+    "HTTP": 3,
+    "DNS": 1
+  },
+  "detection_methods": {},
+  "issue_codes": {},
+  "preprocess_status": {
+    "valid": 2,
+    "partial": 2
+  },
+  "processing_action": {
+    "forward": 2,
+    "mark": 2
+  },
+  "flow_end_reasons": {
+    "end_of_input": 2
+  },
+  "messages": {
+    "complete": 0,
+    "incomplete": 0
+  },
+  "stage_errors": {},
+  "active_flows": 2,
+  "source": {
+    "source": "events",
+    "origin": "TEST/flow-tracker/fixtures/T05-normalize-events.jsonl",
+    "count_limit": null,
+    "events_loaded": 4,
+    "skipped_records": 0
+  }
+}

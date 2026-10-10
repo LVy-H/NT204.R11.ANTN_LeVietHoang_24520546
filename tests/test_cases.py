@@ -318,3 +318,70 @@ def test_t04_invalid_utf8_body_is_partial_and_the_next_packet_is_clean(run_case)
     assert valid["issues"] == []
     assert valid["preprocess_status"] == "valid"
     assert valid["processing_action"] == "forward"
+
+
+T05_HTTP_NORMALIZED = {
+    "timestamp": 1759000000.5,
+    "timestamp_iso": "2025-09-27T19:06:40.500000Z",
+    "network_protocol": "IPv4",
+    "protocol": "TCP",
+    "application_protocol": "HTTP",
+    "src_ip": "10.0.0.1",
+    "dst_ip": "10.0.0.2",
+    "src_port": 51234,
+    "dst_port": 80,
+    "http": {
+        "method": "GET",
+        "scheme": None,
+        "host": "www.example.com",
+        "port": 8080,
+        "path": "/Docs/B/index.html",
+        "headers": {
+            "host": ["WWW.Example.COM:8080"],
+            "user-agent": ["Mixed/1.0"],
+            "accept": ["*/*"],
+        },
+    },
+    "dns": None,
+    "smtp": None,
+}
+T05_DNS_NORMALIZED = {
+    "timestamp": 1759000001.0,
+    "timestamp_iso": "2025-09-27T19:06:41.000000Z",
+    "network_protocol": "IPv4",
+    "protocol": "UDP",
+    "application_protocol": "DNS",
+    "src_ip": "10.0.0.1",
+    "dst_ip": "10.0.0.2",
+    "src_port": 40000,
+    "dst_port": 53,
+    "http": None,
+    "dns": {"names": ["www.example.com"]},
+    "smtp": None,
+}
+
+
+def test_t05_every_spelling_normalizes_to_the_same_values(run_case):
+    capture = run_case(FLOW_FIXTURES / "T05-normalize-pcap.pcap")
+    loaded = run_case(FLOW_FIXTURES / "T05-normalize-events.jsonl")
+    http_packet, dns_packet = capture.packets
+
+    assert (capture.exit_code, loaded.exit_code) == (0, 0)
+    assert http_packet["normalized"] == T05_HTTP_NORMALIZED
+    assert dns_packet["normalized"] == T05_DNS_NORMALIZED
+    assert [loaded.packet(i)["normalized"] for i in (1, 2, 3)] == [T05_HTTP_NORMALIZED] * 3
+    assert loaded.packet(4)["normalized"] == T05_DNS_NORMALIZED
+    # raw fields keep the original spelling
+    assert loaded.packet(2)["src_ip"] == "010.000.000.001"
+    assert loaded.packet(2)["application"]["message"]["headers"][0]["name"] == "host"
+    assert http_packet["application"]["message"]["uri"] == "/Docs/./a/../B//index.html"
+    assert [(p["preprocess_status"], p["reason"]) for p in capture.packets] == [
+        ("valid", []),
+        ("valid", []),
+    ]
+    assert [(p["preprocess_status"], p["reason"]) for p in loaded.packets] == [
+        ("valid", []),
+        ("partial", ["ip_normalized"]),
+        ("partial", ["timestamp_scaled"]),
+        ("valid", []),
+    ]

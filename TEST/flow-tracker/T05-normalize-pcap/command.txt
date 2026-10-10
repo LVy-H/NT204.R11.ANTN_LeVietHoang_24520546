@@ -1,0 +1,1 @@
+.venv/bin/python main.py --pcap TEST/flow-tracker/fixtures/T05-normalize-pcap.pcap --output TEST/flow-tracker/T05-normalize-pcap/output.jsonl --flows-output TEST/flow-tracker/T05-normalize-pcap/flows.jsonl --stats

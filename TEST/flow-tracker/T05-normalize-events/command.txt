@@ -1,0 +1,1 @@
+.venv/bin/python main.py --events TEST/flow-tracker/fixtures/T05-normalize-events.jsonl --output TEST/flow-tracker/T05-normalize-events/output.jsonl --flows-output TEST/flow-tracker/T05-normalize-events/flows.jsonl --stats

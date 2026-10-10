@@ -7,7 +7,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from scapy.all import IP, TCP, UDP, Ether, Raw
+from scapy.all import DNS, DNSQR, IP, TCP, UDP, Ether, Raw
 
 ROOT = Path(__file__).resolve().parents[2]
 FIXTURES = ROOT / "TEST" / "flow-tracker" / "fixtures"
@@ -198,11 +198,119 @@ def t04_invalid_charset() -> list[Frame]:
     return [conn.server(0, "PA", broken), conn.server(10, "PA", valid)]
 
 
+T05_URI = "/Docs/./a/../B//index.html"
+T05_HOST = "WWW.Example.COM:8080"
+
+
+def t05_normalize_pcap() -> list[Frame]:
+    conn = TcpConversation(server_port=HTTP_PORT)
+    request = (
+        f"GET {T05_URI} HTTP/1.1\r\n"
+        f"HOST: {T05_HOST}\r\n"
+        "User-AGENT: Mixed/1.0\r\n"
+        "ACCEPT: */*\r\n"
+        "\r\n"
+    ).encode()
+    query = DNS(id=0x1234, rd=1, qd=DNSQR(qname="WwW.ExAmple.CoM", qtype="A"))
+    return [
+        conn.client(500, "PA", request),
+        udp(1000, CLIENT, 40000, SERVER, DNS_PORT, query),
+    ]
+
+
+def t05_http_event(
+    packet_id: int,
+    timestamp: float | str,
+    src_ip: str,
+    dst_ip: str,
+    protocol: str,
+    names: tuple[str, str, str],
+) -> str:
+    """The pcap's HTTP request as a loaded event, spelled differently each time."""
+    values = (T05_HOST, "Mixed/1.0", "*/*")
+    return event(
+        schema_version=2,
+        record_type="packet",
+        packet_id=packet_id,
+        timestamp=timestamp,
+        src_ip=src_ip,
+        dst_ip=dst_ip,
+        protocol=protocol,
+        src_port=CLIENT_PORT,
+        dst_port=HTTP_PORT,
+        application={
+            "protocol": "HTTP",
+            "message": {
+                "protocol": "HTTP",
+                "kind": "request",
+                "version": "HTTP/1.1",
+                "start_line": f"GET {T05_URI} HTTP/1.1",
+                "method": "GET",
+                "uri": T05_URI,
+                "headers": [
+                    {"name": name, "value": value}
+                    for name, value in zip(names, values, strict=True)
+                ],
+                "complete": True,
+            },
+        },
+    )
+
+
+def t05_normalize_events() -> list[str]:
+    return [
+        t05_http_event(
+            1, 1759000000.5, "10.0.0.1", "10.0.0.2", "TCP", ("HOST", "User-AGENT", "ACCEPT")
+        ),
+        t05_http_event(
+            2,
+            "2025-09-27T19:06:40.500Z",
+            "010.000.000.001",
+            "010.000.000.002",
+            "tcp",
+            ("host", "user-agent", "accept"),
+        ),
+        t05_http_event(
+            3, 1759000000500, " 10.0.0.1 ", "10.0.0.2", "Tcp", ("Host", "USER-AGENT", "Accept")
+        ),
+        event(
+            schema_version=2,
+            record_type="packet",
+            packet_id=4,
+            timestamp="2025-09-27T19:06:41+00:00",
+            src_ip="10.0.0.1",
+            dst_ip="10.0.0.2",
+            protocol="UDP",
+            src_port=40000,
+            dst_port=DNS_PORT,
+            application={
+                "protocol": "DNS",
+                "message": {
+                    "protocol": "DNS",
+                    "kind": "query",
+                    "id": 0x1234,
+                    "questions": [
+                        {
+                            "name": "WWW.EXAMPLE.COM.",
+                            "type": 1,
+                            "type_name": "A",
+                            "class": 1,
+                            "class_name": "IN",
+                        }
+                    ],
+                },
+            },
+        ),
+    ]
+
+
 CASES: dict[str, Callable[[], list[Frame]] | Callable[[], list[str]]] = {
     "T01-http-url-decode.pcap": t01_http_url_decode,
     "T02-html-entities.pcap": t02_html_entities,
     "T03-smtp-mime.pcap": t03_smtp_mime,
     "T04-invalid-charset.pcap": t04_invalid_charset,
+    "T05-normalize-pcap.pcap": t05_normalize_pcap,
+    "T05-normalize-events.jsonl": t05_normalize_events,
 }
 
 
