@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from flow_events import CLIENT, SERVER, T0, make_table, tcp_event, udp_event
 
-from ids.flow.key import make_key
+from ids.flow.key import flow_id, make_key
 from ids.flow.table import FlowTable
 from ids.model import EndReason, TcpState
 
@@ -114,6 +114,34 @@ def test_closed_flow_lingers_for_trailing_packets_then_a_new_syn_starts_a_new_fl
     assert new.flow_id != old.flow_id
     assert (new.flow_packet_index, new.state) == (1, TcpState.HANDSHAKE)
     assert table.active_count == 1
+
+
+def reuse_at_one_timestamp() -> list[str]:
+    """Three connections on one 5-tuple, every packet at T0; returns the exported flow ids."""
+    table, out = make_table(), []
+    for start_id in (1, 7, 13):
+        for event in closed_connection(start_id, T0):
+            event.timestamp = T0
+            feed(table, event, out)
+    table.flush(out.append)
+    return [record.flow_id for record in out]
+
+
+def test_a_reused_5_tuple_gets_a_new_flow_id_even_at_the_same_timestamp():
+    ids = reuse_at_one_timestamp()
+    key = make_key(tcp_event(1, T0, CLIENT, SERVER, "S"))[0]
+    assert ids[0] == flow_id(key, T0)  # the first flow keeps the documented formula
+    assert len(set(ids)) == 3
+    assert reuse_at_one_timestamp() == ids  # deterministic across runs
+
+
+def test_a_flow_recreated_after_eviction_at_the_same_timestamp_gets_a_new_flow_id():
+    table, out = make_table(max_flows=1), []
+    first = feed(table, udp_event(1, T0, DNS_CLIENT, RESOLVER), out)
+    feed(table, udp_event(2, T0, OTHER, RESOLVER), out)
+    again = feed(table, udp_event(3, T0, DNS_CLIENT, RESOLVER), out)
+    assert [r.end_reason for r in out] == [EndReason.EVICTED, EndReason.EVICTED]
+    assert again.flow_id != first.flow_id
 
 
 def test_closed_flow_is_exported_after_the_linger_since_its_last_packet():

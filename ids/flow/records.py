@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 from ..model import Direction, Endpoint, EndReason, FlowRecord, FlowRef, PacketEvent, TcpInfo
 from ..model.event import UNKNOWN
-from .key import FlowKey, flow_id
+from .key import FlowKey, flow_id, start_us
 from .tcp import TcpConnection, is_syn_ack
 
 if TYPE_CHECKING:
@@ -46,12 +46,20 @@ def payload_bytes(event: PacketEvent) -> int:
 class FlowState:
     """Mutable per-flow state. `record` is filled in place and handed out by `finish`."""
 
-    __slots__ = ("_app_rank", "key", "record", "smtp", "tcp", "touched")
+    __slots__ = ("_app_rank", "id_origin", "key", "record", "smtp", "tcp", "touched")
 
     def __init__(
-        self, key: FlowKey, src: Endpoint, dst: Endpoint, event: PacketEvent, timestamp: float
+        self,
+        key: FlowKey,
+        src: Endpoint,
+        dst: Endpoint,
+        event: PacketEvent,
+        timestamp: float,
+        generation: int = 0,
     ) -> None:
         self.key = key
+        # (creation time in µs, generation): what the flow_id hashes
+        self.id_origin = (start_us(timestamp), generation)
         self.tcp: TcpConnection | None = None
         endpoint_a, endpoint_b = src, dst
         if isinstance(event.transport, TcpInfo):
@@ -60,7 +68,7 @@ class FlowState:
                 endpoint_a, endpoint_b = dst, src
             self.tcp = TcpConnection(flags)
         self.record = FlowRecord(
-            flow_id=flow_id(key, timestamp),
+            flow_id=flow_id(key, timestamp, generation),
             protocol=key.proto,
             application_protocol=UNKNOWN,
             endpoint_a=endpoint_a,

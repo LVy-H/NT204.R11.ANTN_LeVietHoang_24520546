@@ -73,10 +73,20 @@ def make_key(event: PacketEvent) -> tuple[FlowKey, Endpoint, Endpoint] | None:
     return key, Endpoint(str(src_ip), sport), Endpoint(str(dst_ip), dport)
 
 
-def flow_id(key: FlowKey, start_time: float) -> str:
-    """First 16 hex chars of sha1 over the key and the start time in microseconds."""
+def start_us(timestamp: float) -> int:
+    """A flow start time in whole microseconds, as hashed into its flow_id."""
+    return round(timestamp * 1e6)
+
+
+def flow_id(key: FlowKey, start_time: float, generation: int = 0) -> str:
+    """First 16 hex chars of sha1 over the key and the start time in microseconds.
+
+    `generation` > 0 numbers later flows on the same key that start in the same
+    microsecond; it is appended as `|<generation>` so their ids differ."""
     text = (
         f"{key.proto}|{IPv4Address(key.lo_ip)}:{key.lo_port}"
-        f"|{IPv4Address(key.hi_ip)}:{key.hi_port}|{round(start_time * 1e6)}"
+        f"|{IPv4Address(key.hi_ip)}:{key.hi_port}|{start_us(start_time)}"
     )
+    if generation:
+        text += f"|{generation}"
     return hashlib.sha1(text.encode("ascii")).hexdigest()[:16]

@@ -4,7 +4,7 @@ from collections import OrderedDict
 from typing import TYPE_CHECKING
 
 from ..model import Endpoint, EndReason, FlowRef, PacketEvent, TcpState
-from .key import FlowKey
+from .key import FlowKey, start_us
 from .records import FlowState
 from .smtp import SmtpReassembler
 from .tcp import TERMINAL_STATES, is_new_syn
@@ -46,6 +46,10 @@ class FlowTable:
         self.max_flows = max_flows
         self.max_message_bytes = max_message_bytes
         self._lanes = (self.tcp_open, self.tcp_closed, self.udp)
+        # id_origin of the last max_flows exported flows per key, newest last: a flow that
+        # replaces one started in the same microsecond takes the next generation, so the
+        # two flow_ids differ
+        self._ended: OrderedDict[FlowKey, tuple[int, int]] = OrderedDict()
         self._timeouts = (
             (self.tcp_open, tcp_idle_timeout),
             (self.tcp_closed, tcp_closed_timeout),
@@ -139,11 +143,14 @@ class FlowTable:
         timestamp: float,
         emit: Emit,
     ) -> FlowState:
+        start = start_us(timestamp)
+        previous = self._ended.pop(key, None)  # looked up before an eviction can push it out
+        generation = previous[1] + 1 if previous is not None and previous[0] == start else 0
         if self.active_count >= self.max_flows:
             oldest = self._oldest_lane()
             _, evicted = oldest.popitem(last=False)
             self._export(evicted, EndReason.EVICTED, emit)
-        flow = FlowState(key, src, dst, event, timestamp)
+        flow = FlowState(key, src, dst, event, timestamp, generation)
         lane[key] = flow
         return flow
 
@@ -178,6 +185,10 @@ class FlowTable:
         return _closed_reason(flow) if lane is self.tcp_closed else default
 
     def _export(self, flow: FlowState, reason: EndReason, emit: Emit) -> None:
+        self._ended.pop(flow.key, None)
+        self._ended[flow.key] = flow.id_origin
+        if len(self._ended) > self.max_flows:
+            self._ended.popitem(last=False)
         if flow.smtp is not None:
             message = flow.smtp.finish()
             if message is not None:
