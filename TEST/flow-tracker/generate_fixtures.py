@@ -393,6 +393,25 @@ def t10_udp_dns_flow() -> list[Frame]:
     ]
 
 
+def t11_interleaved_flows() -> list[Frame]:
+    first = TcpConversation()
+    second = TcpConversation(client=CLIENT2, client_port=51300, client_isn=3000, server_isn=8000)
+    return [
+        first.client(0, "S"),
+        second.client(10, "S"),
+        udp(20, CLIENT, 40000, SERVER, 5000, Raw(b"udp-1")),
+        first.server(30, "SA"),
+        second.server(40, "SA"),
+        udp(50, SERVER, 5000, CLIENT, 40000, Raw(b"udp-2")),
+        first.client(60, "A"),
+        second.client(70, "A"),
+        first.client(80, "PA", b"first client data\n"),
+        udp(90, CLIENT, 40000, SERVER, 5000, Raw(b"udp-3")),
+        second.client(100, "PA", b"second\n"),
+        first.server(110, "A"),
+    ]
+
+
 CASES: dict[str, Callable[[], list[Frame]] | Callable[[], list[str]]] = {
     "T01-http-url-decode.pcap": t01_http_url_decode,
     "T02-html-entities.pcap": t02_html_entities,
@@ -405,6 +424,7 @@ CASES: dict[str, Callable[[], list[Frame]] | Callable[[], list[str]]] = {
     "T08-tcp-bidirectional.pcap": t08_tcp_bidirectional,
     "T09-tcp-close-reset.pcap": t09_tcp_close_reset,
     "T10-udp-dns-flow.pcap": t10_udp_dns_flow,
+    "T11-interleaved-flows.pcap": t11_interleaved_flows,
 }
 
 

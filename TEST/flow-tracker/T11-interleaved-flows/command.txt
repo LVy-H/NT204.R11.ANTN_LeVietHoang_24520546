@@ -1,0 +1,1 @@
+.venv/bin/python main.py --pcap TEST/flow-tracker/fixtures/T11-interleaved-flows.pcap --output TEST/flow-tracker/T11-interleaved-flows/output.jsonl --flows-output TEST/flow-tracker/T11-interleaved-flows/flows.jsonl --stats

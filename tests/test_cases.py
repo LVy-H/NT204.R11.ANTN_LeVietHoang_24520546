@@ -548,3 +548,32 @@ def test_t10_dns_query_and_response_form_one_udp_flow(run_case):
     assert flow["forward"] == {"packet_count": 1, "byte_count": 57, "payload_byte_count": 29}
     assert flow["backward"] == {"packet_count": 1, "byte_count": 84, "payload_byte_count": 56}
     assert flow["end_reason"] == "end_of_input"
+
+
+def test_t11_interleaved_flows_are_counted_separately(run_case):
+    run = run_case(FLOW_FIXTURES / "T11-interleaved-flows.pcap")
+    by_flow: dict[str, list[int]] = {}
+    for packet in run.packets:
+        by_flow.setdefault(packet["flow"]["flow_id"], []).append(packet["packet_id"])
+
+    assert run.exit_code == 0
+    assert sorted(by_flow.values()) == [[1, 4, 7, 9, 12], [2, 5, 8, 11], [3, 6, 10]]
+    summary = {
+        (
+            flow["protocol"],
+            flow["endpoint_a"]["ip"],
+            flow["endpoint_a"]["port"],
+            flow["endpoint_b"]["port"],
+        ): (flow["packet_count"], flow["byte_count"], flow["payload_byte_count"])
+        for flow in run.flows
+    }
+    assert summary == {
+        ("TCP", "10.0.0.1", 51234, 9000): (5, 218, 18),
+        ("TCP", "10.0.0.3", 51300, 9000): (4, 167, 7),
+        ("UDP", "10.0.0.1", 40000, 5000): (3, 99, 15),
+    }
+    for flow in run.flows:
+        assert by_flow[flow["flow_id"]][0] == flow["first_packet_id"]
+        assert by_flow[flow["flow_id"]][-1] == flow["last_packet_id"]
+    indexes = [p["flow"]["flow_packet_index"] for p in run.packets]
+    assert indexes == [1, 1, 1, 2, 2, 2, 3, 3, 4, 3, 4, 5]
