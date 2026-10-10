@@ -577,3 +577,23 @@ def test_t11_interleaved_flows_are_counted_separately(run_case):
         assert by_flow[flow["flow_id"]][-1] == flow["last_packet_id"]
     indexes = [p["flow"]["flow_packet_index"] for p in run.packets]
     assert indexes == [1, 1, 1, 2, 2, 2, 3, 3, 4, 3, 4, 5]
+
+
+def test_t12_idle_udp_flow_is_exported_before_the_packet_that_expires_it(run_case):
+    run = run_case(FLOW_FIXTURES / "T12-udp-idle-timeout.pcap")
+    first, later = run.flows
+
+    assert run.exit_code == 0
+    # a gap of exactly 60 s (packet 2 -> 3) keeps the flow alive; 61 s (3 -> 4) expires it
+    assert [p["flow"]["flow_id"] for p in run.packets[:3]] == [first["flow_id"]] * 3
+    assert first["end_reason"] == "idle_timeout"
+    assert (first["packet_count"], first["last_packet_id"], first["last_seen"]) == (
+        3,
+        3,
+        at(61000),
+    )
+    assert run.position(run.packet(3)) < run.position(first) < run.position(run.packet(4))
+    assert run.packet(4)["flow"]["flow_id"] == later["flow_id"] != first["flow_id"]
+    assert later["end_reason"] == "end_of_input"
+    assert run.stats["active_flows"] == 1
+    assert run.stats["flow_end_reasons"] == {"idle_timeout": 1, "end_of_input": 1}

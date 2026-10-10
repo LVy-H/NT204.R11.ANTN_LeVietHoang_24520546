@@ -1,0 +1,1 @@
+.venv/bin/python main.py --pcap TEST/flow-tracker/fixtures/T12-udp-idle-timeout.pcap --output TEST/flow-tracker/T12-udp-idle-timeout/output.jsonl --flows-output TEST/flow-tracker/T12-udp-idle-timeout/flows.jsonl --stats

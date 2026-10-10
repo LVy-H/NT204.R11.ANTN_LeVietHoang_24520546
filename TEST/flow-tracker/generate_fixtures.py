@@ -412,6 +412,15 @@ def t11_interleaved_flows() -> list[Frame]:
     ]
 
 
+def t12_udp_idle_timeout() -> list[Frame]:
+    return [
+        udp(0, CLIENT, 40000, SERVER, 5000, Raw(b"ping")),
+        udp(1000, SERVER, 5000, CLIENT, 40000, Raw(b"pong")),
+        udp(61000, CLIENT, 40000, SERVER, 5000, Raw(b"again")),
+        udp(122000, CLIENT, 40001, SERVER, 5001, Raw(b"later")),
+    ]
+
+
 CASES: dict[str, Callable[[], list[Frame]] | Callable[[], list[str]]] = {
     "T01-http-url-decode.pcap": t01_http_url_decode,
     "T02-html-entities.pcap": t02_html_entities,
@@ -425,6 +434,7 @@ CASES: dict[str, Callable[[], list[Frame]] | Callable[[], list[str]]] = {
     "T09-tcp-close-reset.pcap": t09_tcp_close_reset,
     "T10-udp-dns-flow.pcap": t10_udp_dns_flow,
     "T11-interleaved-flows.pcap": t11_interleaved_flows,
+    "T12-udp-idle-timeout.pcap": t12_udp_idle_timeout,
 }
 
 
