@@ -50,8 +50,8 @@ wrote 17 records from 14 packets (0 dropped, 0 skipped, 14 with issues)
     "capture/truncated_packet": 1
   },
   "preprocess_status": {
-    "partial": 10,
-    "invalid": 4
+    "invalid": 8,
+    "partial": 6
   },
   "processing_action": {
     "mark": 14
