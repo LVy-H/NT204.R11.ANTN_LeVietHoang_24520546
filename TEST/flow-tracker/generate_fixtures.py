@@ -342,6 +342,11 @@ def t06_missing_fields() -> list[str]:
     ]
 
 
+def t07_tcp_handshake() -> list[Frame]:
+    conn = TcpConversation()
+    return [conn.client(0, "S"), conn.server(10, "SA"), conn.client(20, "A")]
+
+
 CASES: dict[str, Callable[[], list[Frame]] | Callable[[], list[str]]] = {
     "T01-http-url-decode.pcap": t01_http_url_decode,
     "T02-html-entities.pcap": t02_html_entities,
@@ -350,6 +355,7 @@ CASES: dict[str, Callable[[], list[Frame]] | Callable[[], list[str]]] = {
     "T05-normalize-pcap.pcap": t05_normalize_pcap,
     "T05-normalize-events.jsonl": t05_normalize_events,
     "T06-missing-fields.jsonl": t06_missing_fields,
+    "T07-tcp-handshake.pcap": t07_tcp_handshake,
 }
 
 

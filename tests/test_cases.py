@@ -419,3 +419,30 @@ def test_t06_events_missing_optional_fields_load_with_the_full_key_set(run_case)
     assert message["headers"] == []
     assert message["body"] is None
     assert http["event_type"] == "http_request"
+
+
+def test_t07_three_way_handshake_establishes_one_flow(run_case):
+    run = run_case(FLOW_FIXTURES / "T07-tcp-handshake.pcap")
+    (flow,) = run.flows
+
+    assert run.exit_code == 0
+    assert [p["flow"]["flow_id"] for p in run.packets] == [flow["flow_id"]] * 3
+    assert [p["flow"]["state"] for p in run.packets] == ["HANDSHAKE", "HANDSHAKE", "ESTABLISHED"]
+    assert [p["flow"]["direction"] for p in run.packets] == ["forward", "backward", "forward"]
+    assert [p["flow"]["flow_packet_index"] for p in run.packets] == [1, 2, 3]
+    assert flow["protocol"] == "TCP"
+    assert flow["endpoint_a"] == {"ip": "10.0.0.1", "port": 51234}
+    assert flow["endpoint_b"] == {"ip": "10.0.0.2", "port": 9000}
+    assert flow["tcp"] == {
+        "state": "ESTABLISHED",
+        "syn_count": 2,
+        "ack_count": 2,
+        "fin_count": 0,
+        "rst_count": 0,
+        "handshake_complete": True,
+        "midstream": False,
+    }
+    assert (flow["packet_count"], flow["byte_count"], flow["payload_byte_count"]) == (3, 120, 0)
+    assert (flow["start_time"], flow["last_seen"], flow["duration"]) == (at(0), at(20), 0.02)
+    assert (flow["first_packet_id"], flow["last_packet_id"]) == (1, 3)
+    assert flow["end_reason"] == "end_of_input"

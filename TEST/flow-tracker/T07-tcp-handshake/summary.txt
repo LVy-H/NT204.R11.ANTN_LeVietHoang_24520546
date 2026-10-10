@@ -1,0 +1,52 @@
+source: pcap TEST/flow-tracker/fixtures/T07-tcp-handshake.pcap
+wrote 4 records from 3 packets (0 dropped, 0 skipped, 0 with issues)
+{
+  "packets_seen": 3,
+  "records_written": {
+    "packet": 3,
+    "message": 0,
+    "flow": 1
+  },
+  "dropped": 0,
+  "skipped": 0,
+  "packets_with_issues": 0,
+  "first_timestamp": 1759000000.0,
+  "last_timestamp": 1759000000.02,
+  "event_types": {
+    "tcp_segment": 3
+  },
+  "protocols": {
+    "TCP": 3
+  },
+  "application_protocols": {
+    "UNKNOWN": 3
+  },
+  "detection_methods": {
+    "none": 3
+  },
+  "issue_codes": {},
+  "preprocess_status": {
+    "valid": 3
+  },
+  "processing_action": {
+    "forward": 3
+  },
+  "flow_end_reasons": {
+    "end_of_input": 1
+  },
+  "messages": {
+    "complete": 0,
+    "incomplete": 0
+  },
+  "stage_errors": {},
+  "active_flows": 1,
+  "source": {
+    "source": "pcap",
+    "origin": "TEST/flow-tracker/fixtures/T07-tcp-handshake.pcap",
+    "format": "pcap",
+    "linktype": 1,
+    "linktype_name": "EN10MB",
+    "snaplen": 262144,
+    "count_limit": null
+  }
+}

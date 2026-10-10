@@ -1,0 +1,1 @@
+.venv/bin/python main.py --pcap TEST/flow-tracker/fixtures/T07-tcp-handshake.pcap --output TEST/flow-tracker/T07-tcp-handshake/output.jsonl --flows-output TEST/flow-tracker/T07-tcp-handshake/flows.jsonl --stats
