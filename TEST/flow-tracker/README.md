@@ -44,3 +44,4 @@ dưới. Khi test, mọi record nằm chung một stream nên kiểm tra đượ
 | T07 | TCP handshake SYN, SYN/ACK, ACK | `T07-tcp-handshake.pcap` | 1 flow; packet 3 `flow.state` = `ESTABLISHED`; flow `tcp.state` = `ESTABLISHED`, `handshake_complete` = true, SYN 2 / ACK 2 |
 | T08 | Handshake + data hai chiều | `T08-tcp-bidirectional.pcap` | 1 `flow_id` trên mọi packet; `direction` = `forward` khi client gửi, `backward` khi server gửi; forward 4 / backward 3 packet |
 | T09 | Đóng FIN/ACK và huỷ bằng RST | `T09-tcp-close-reset.pcap` | flow 1 `CLOSED` / `end_reason` = `closed`, flow 2 `RESET` / `reset`; SYN dùng lại 5-tuple của flow 1 khi flow này còn chờ → flow mới, flow 1 được ghi ra trước SYN đó |
+| T10 | DNS query + response qua UDP | `T10-udp-dns-flow.pcap` | 1 flow UDP, `packet_count` = 2, `byte_count` = 141 (57 + 84, tổng IPv4 `total_length`), forward 1 / backward 1, `tcp` = `null` |

@@ -7,7 +7,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from scapy.all import DNS, DNSQR, IP, TCP, UDP, Ether, Raw
+from scapy.all import DNS, DNSQR, DNSRR, IP, TCP, UDP, Ether, Raw
 
 ROOT = Path(__file__).resolve().parents[2]
 FIXTURES = ROOT / "TEST" / "flow-tracker" / "fixtures"
@@ -383,6 +383,16 @@ def t09_tcp_close_reset() -> list[Frame]:
     ]
 
 
+def t10_udp_dns_flow() -> list[Frame]:
+    question = DNSQR(qname="example.com", qtype="A")
+    answer = DNSRR(rrname="example.com", type="A", ttl=300, rdata="93.184.216.34")
+    response = DNS(id=0x2001, qr=1, rd=1, ra=1, qd=question, an=answer)
+    return [
+        udp(0, CLIENT, 40000, SERVER, DNS_PORT, DNS(id=0x2001, rd=1, qd=question)),
+        udp(20, SERVER, DNS_PORT, CLIENT, 40000, response),
+    ]
+
+
 CASES: dict[str, Callable[[], list[Frame]] | Callable[[], list[str]]] = {
     "T01-http-url-decode.pcap": t01_http_url_decode,
     "T02-html-entities.pcap": t02_html_entities,
@@ -394,6 +404,7 @@ CASES: dict[str, Callable[[], list[Frame]] | Callable[[], list[str]]] = {
     "T07-tcp-handshake.pcap": t07_tcp_handshake,
     "T08-tcp-bidirectional.pcap": t08_tcp_bidirectional,
     "T09-tcp-close-reset.pcap": t09_tcp_close_reset,
+    "T10-udp-dns-flow.pcap": t10_udp_dns_flow,
 }
 
 

@@ -530,3 +530,21 @@ def test_t09_syn_reusing_a_closed_five_tuple_starts_a_new_flow(run_case):
     assert (replacement["first_packet_id"], replacement["last_packet_id"]) == (13, 15)
     assert replacement["end_reason"] == "end_of_input"
     assert len(run.flows) == 3
+
+
+def test_t10_dns_query_and_response_form_one_udp_flow(run_case):
+    run = run_case(FLOW_FIXTURES / "T10-udp-dns-flow.pcap")
+    (flow,) = run.flows
+
+    assert run.exit_code == 0
+    assert [p["event_type"] for p in run.packets] == ["dns_query", "dns_response"]
+    assert [p["flow"]["state"] for p in run.packets] == [None, None]
+    assert [p["flow"]["direction"] for p in run.packets] == ["forward", "backward"]
+    assert flow["protocol"] == "UDP"
+    assert flow["application_protocol"] == "DNS"
+    assert flow["tcp"] is None
+    assert flow["packet_count"] == 2
+    assert flow["byte_count"] == sum(p["network"]["total_length"] for p in run.packets) == 141
+    assert flow["forward"] == {"packet_count": 1, "byte_count": 57, "payload_byte_count": 29}
+    assert flow["backward"] == {"packet_count": 1, "byte_count": 84, "payload_byte_count": 56}
+    assert flow["end_reason"] == "end_of_input"
