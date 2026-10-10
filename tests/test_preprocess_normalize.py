@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 
+from ids.decoder.url import decode_uri
 from ids.model import (
     ApplicationInfo,
     DecodedHttp,
@@ -255,6 +256,15 @@ def test_path_comes_from_the_decoded_uri_when_present():
 
 def test_path_falls_back_to_the_raw_uri_without_query_or_fragment():
     assert normalize(http_event(uri="/a/./b/../c//d?x=/../y#f"))[0].http.path == "/a/c/d"
+
+
+@pytest.mark.parametrize("uri", ["example.com:443", "*"])
+def test_authority_and_asterisk_form_have_no_path_with_or_without_the_decoder(uri):
+    decoded = DecodedHttp(uri=decode_uri(uri))
+    with_decoder = normalize(http_event(("Host", "example.com"), uri=uri, decoded=decoded))[0]
+    without = normalize(http_event(("Host", "example.com"), uri=uri))[0]
+    assert with_decoder.http.path is None
+    assert with_decoder.http == without.http
 
 
 def test_origin_form_has_no_scheme_and_method_is_kept_as_sent():

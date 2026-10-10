@@ -230,10 +230,10 @@ def _http(message: HttpMessage, decoded: DecodedHttp | None, notes: list[str]) -
     host, port, host_notes = split_host(authority)
     result.host, result.port = host, port
     notes.extend(host_notes)
-    if isinstance(decoded, DecodedHttp) and decoded.uri is not None:
-        path: str | None = decoded.uri.path
-    else:
-        path = raw_path
+    # authority-form (CONNECT host:port) and asterisk-form (`*`) targets have no path
+    path = raw_path
+    if raw_path is not None and isinstance(decoded, DecodedHttp) and decoded.uri is not None:
+        path = decoded.uri.path
     if path is not None:
         result.path, path_notes = normalize_path(path)
         notes.extend(path_notes)
