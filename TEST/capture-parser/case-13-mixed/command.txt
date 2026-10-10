@@ -1,1 +1,1 @@
-.venv/bin/python main.py --pcap TEST/fixtures/13-mixed.pcapng --output TEST/case-13-mixed/output.jsonl --stats
+.venv/bin/python main.py --pcap TEST/capture-parser/fixtures/13-mixed.pcapng --output TEST/capture-parser/case-13-mixed/output.jsonl --flows-output TEST/capture-parser/case-13-mixed/flows.jsonl --stats

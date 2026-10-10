@@ -1,10 +1,15 @@
-source: pcap TEST/fixtures/13-mixed.pcapng
-parsed 12 events from 12 packets (0 skipped, 0 with errors)
+source: pcap TEST/capture-parser/fixtures/13-mixed.pcapng
+wrote 14 records from 12 packets (0 dropped, 0 skipped, 0 with issues)
 {
   "packets_seen": 12,
-  "events_written": 12,
-  "events_skipped": 0,
-  "packets_with_errors": 0,
+  "records_written": {
+    "packet": 12,
+    "message": 0,
+    "flow": 2
+  },
+  "dropped": 0,
+  "skipped": 0,
+  "packets_with_issues": 0,
   "first_timestamp": 1759000000.0,
   "last_timestamp": 1759000003.0,
   "event_types": {
@@ -13,10 +18,7 @@ parsed 12 events from 12 packets (0 skipped, 0 with errors)
     "dns_query": 3,
     "http_request": 1
   },
-  "network_protocols": {
-    "IPv4": 12
-  },
-  "transport_protocols": {
+  "protocols": {
     "TCP": 9,
     "UDP": 3
   },
@@ -31,10 +33,25 @@ parsed 12 events from 12 packets (0 skipped, 0 with errors)
     "port+payload": 4,
     "payload": 4
   },
-  "error_codes": {},
+  "issue_codes": {},
+  "preprocess_status": {
+    "valid": 12
+  },
+  "processing_action": {
+    "forward": 12
+  },
+  "flow_end_reasons": {
+    "end_of_input": 2
+  },
+  "messages": {
+    "complete": 0,
+    "incomplete": 0
+  },
+  "stage_errors": {},
+  "active_flows": 2,
   "source": {
     "source": "pcap",
-    "origin": "TEST/fixtures/13-mixed.pcapng",
+    "origin": "TEST/capture-parser/fixtures/13-mixed.pcapng",
     "format": "pcapng",
     "linktype": 1,
     "linktype_name": "EN10MB",
