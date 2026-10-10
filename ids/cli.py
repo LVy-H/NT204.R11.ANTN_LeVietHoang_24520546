@@ -8,6 +8,7 @@ from collections.abc import Sequence
 
 from . import __version__
 from .capture import EventsSource, LiveSource, PcapSource, list_interfaces
+from .decoder import DecoderConfig, DecoderStage
 from .issues import ParseError
 from .parsers import PacketParser, ParserConfig
 from .pipeline import UNKNOWN_POLICIES, Runner, Stage
@@ -116,6 +117,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="payload bytes rendered in payload.preview (default: 256)",
     )
     parser.add_argument(
+        "--max-decoded-bytes",
+        type=non_negative_int,
+        default=1_048_576,
+        metavar="BYTES",
+        help="UTF-8 bytes kept per decoded text field (default: 1048576)",
+    )
+    parser.add_argument(
         "--unknown-policy",
         choices=UNKNOWN_POLICIES,
         default="emit",
@@ -130,7 +138,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def build_stages(args: argparse.Namespace) -> list[Stage]:
-    return []
+    return [DecoderStage(DecoderConfig(max_decoded_bytes=args.max_decoded_bytes))]
 
 
 def _note(quiet: bool, message: str) -> None:
