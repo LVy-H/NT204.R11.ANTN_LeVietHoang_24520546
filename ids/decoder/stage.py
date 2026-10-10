@@ -112,8 +112,15 @@ class DecoderStage:
                 issues, "uri", decoded.uri.status, _INVALID_ESCAPE.search(message.uri) is not None
             )
         body = message.body
-        # chunked transfer decoding is a spec §3 non-goal: the bytes still carry chunk framing
-        if body is not None and body.length and body.transfer_encoding != "chunked":
+        encoding = message.header("content-encoding")
+        # chunked transfer decoding and compressed bodies are spec §3 non-goals: the bytes are
+        # not the text a form or body decoder would read
+        if (
+            body is not None
+            and body.length
+            and body.transfer_encoding != "chunked"
+            and (encoding is None or encoding.strip().lower() in ("", "identity"))
+        ):
             start = body.offset or 0
             data = payload.data if payload is not None else None
             raw = data[start : start + body.length] if data is not None else b""
@@ -126,7 +133,7 @@ class DecoderStage:
                     decoded.form.status,
                     _INVALID_ESCAPE_BYTES.search(raw) is not None,
                 )
-            decoded.body = self._body(message, raw, body.length, media, charset, issues)
+            decoded.body = self._body(raw, body.length, media, charset, issues)
         decoded.status = worst_status(
             part.status for part in (decoded.uri, decoded.form, decoded.body) if part is not None
         )
@@ -134,16 +141,12 @@ class DecoderStage:
 
     def _body(
         self,
-        message: HttpMessage,
         raw: bytes,
         length: int,
         media: str | None,
         charset: str | None,
         issues: Issues,
     ) -> DecodedText | None:
-        encoding = message.header("content-encoding")
-        if encoding is not None and encoding.strip().lower() not in ("", "identity"):
-            return None  # compressed bodies are not decoded (spec §3)
         if media is None:
             if looks_binary(raw):
                 return None

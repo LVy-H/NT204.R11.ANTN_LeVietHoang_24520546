@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import gzip
 import json
 import struct
 
@@ -224,6 +225,22 @@ def test_compressed_body_is_not_decoded_as_text():
     )
 
     assert event.decoded.body is None
+    assert event.issues == []
+
+
+def test_compressed_form_body_is_not_decoded_as_a_form():
+    event = run(
+        http_event(
+            headers=(
+                ("Content-Type", "application/x-www-form-urlencoded"),
+                ("Content-Encoding", "gzip"),
+            ),
+            body=gzip.compress(b"user=admin&pass=secret", mtime=0),
+        )
+    )
+
+    assert (event.decoded.form, event.decoded.body) == (None, None)
+    assert event.decoded.status is DecodeStatus.NOT_APPLICABLE
     assert event.issues == []
 
 
