@@ -319,3 +319,41 @@ def test_gap_clears_the_terminator_search_tail():
     message = exchange.client(b"\r\nmore\r\n.\r\n", seq=exchange.client_seq + 10)
     assert message.data == b"x\r\n.\r\nmore\r\n.\r\n"
     assert message.gap is True
+
+
+def _short_segment(exchange, payload, seq, length):
+    packet_id = len(exchange.events) + 1
+    event = tcp_event(
+        packet_id, T0 + packet_id, MAIL_CLIENT, MAIL_SERVER, "PA", seq=seq, ack=1, payload=payload
+    )
+    event.transport.payload_length = length
+    exchange.events.append(event)
+    return exchange.client(b"", seq=seq, event=event)
+
+
+def test_short_segment_clears_the_terminator_search_tail():
+    exchange = Exchange()
+    exchange.start()
+    assert _short_segment(exchange, b"x\r\n.", exchange.client_seq, 20) is None
+    message = exchange.client(b"\r\nmore\r\n.\r\n")
+    assert message.data == b"x\r\n.\r\nmore\r\n.\r\n"
+    assert message.gap is True
+
+
+def test_short_retransmission_without_new_bytes_clears_the_tail():
+    exchange = Exchange()
+    exchange.start()
+    first_seq = exchange.client_seq
+    assert exchange.client(b"x\r\n.") is None
+    assert _short_segment(exchange, b"x\r\n.", first_seq, 14) is None
+    message = exchange.client(b"\r\nmore\r\n.\r\n")
+    assert message.data == b"x\r\n.\r\nmore\r\n.\r\n"
+    assert message.gap is True
+
+
+def test_body_start_is_no_line_start_after_missing_bytes():
+    exchange = Exchange()
+    exchange.start()
+    message = exchange.client(b".\r\nrest\r\n.\r\n", seq=exchange.client_seq + 10)
+    assert message.data == b".\r\nrest\r\n.\r\n"
+    assert message.gap is True

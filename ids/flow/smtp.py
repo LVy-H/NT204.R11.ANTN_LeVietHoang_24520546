@@ -121,6 +121,8 @@ class SmtpReassembler:
         if offset < 0:
             data = data[-offset:]  # overlap with bytes already collected
         if not data:
+            if short:
+                self._tail = b""  # the missing bytes break the terminator search
             return None
         if packet_id is not None:
             self._packet_ids.append(packet_id)
@@ -128,7 +130,8 @@ class SmtpReassembler:
             self._start = timestamp
         self._end = timestamp
 
-        prefix = self._tail if self._seen else b"\r\n"
+        # The body start counts as a line start, unless bytes before it were never captured.
+        prefix = self._tail if self._seen or offset > 0 else b"\r\n"
         cut = (prefix + data[:4]).find(TERMINATOR)
         if cut >= 0:
             cut += len(TERMINATOR) - len(prefix)
