@@ -1,1 +1,1 @@
-.venv/bin/python main.py --pcap TEST/fixtures/04-http-get.pcap --output TEST/case-04-http-get/output.jsonl --stats
+.venv/bin/python main.py --pcap TEST/capture-parser/fixtures/04-http-get.pcap --output TEST/capture-parser/case-04-http-get/output.jsonl --flows-output TEST/capture-parser/case-04-http-get/flows.jsonl --stats
