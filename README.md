@@ -149,4 +149,4 @@ OMP(https://github.com/can1357/oh-my-pi) with deepseek-v4.1-flash
 
 | Công cụ | Mô hình | Mục đích | Phần liên quan |
 |---|---|---|---|
-| OMP (oh-my-pi) | Claude Opus (Anthropic) | Phân tích codebase, thiết kế, viết kế hoạch và mã nguồn | `ids/` (viết lại theo model có kiểu), `ids/decoder/`, `ids/preprocess/`, `ids/flow/`, `tests/`, fixture trong `TEST/`, `docs/` |
+| OMP (oh-my-pi) | Claude Opus (Anthropic) | Phân tích codebase, thiết kế, viết kế hoạch và mã nguồn | `ids/` (viết lại theo model có kiểu), `ids/decoder/`, `ids/preprocess/`, `ids/flow/`, `tests/`, `TEST/` (script sinh fixture `generate_fixtures.py`, `run_cases.sh`, fixture, README, kết quả), `docs/`, `README.md` |
