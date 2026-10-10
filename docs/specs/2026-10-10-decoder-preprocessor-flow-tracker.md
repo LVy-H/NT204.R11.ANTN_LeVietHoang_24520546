@@ -139,16 +139,15 @@ payload with no command or reply line is DATA content, not a decode error.
   nested blocks.
 - `application = {protocol, detection, message}`; `message.kind` ∈ `request`, `response`,
   `query`, `command`, `mixed`, `data`.
-- Bytes are written as base64 under `*_b64` keys (`payload.data_b64`,
-  `application.message.body.data_b64`).
+- Bytes are written as base64 under `*_b64` keys (`payload.data_b64`).
 - Preprocess fields are top-level: `preprocess_status`, `processing_action`, `reason`.
 - Every optional scalar is written as `null` and every optional list as `[]`; the key set of
   a record type never varies.
 - Values that are not JSON types raise `TypeError` (bug, not data).
 
-### 6.4 Tolerant decode (`codec.decode`)
+### 6.4 Tolerant decode (`codec.decode_packet`)
 
-- Signature: `decode(obj: object) -> tuple[PacketEvent, list[Issue]]`; never raises.
+- Signature: `decode_packet(obj: object) -> tuple[PacketEvent, list[Issue]]`; never raises.
 - Missing key → field default (`None` / `[]`), no issue; the Preprocessor reports missing
   required fields as `missing_field:<name>` reasons.
 - Wrong type, bad base64, unparsable number → field `None` + `Issue("load", "invalid_type")`.
