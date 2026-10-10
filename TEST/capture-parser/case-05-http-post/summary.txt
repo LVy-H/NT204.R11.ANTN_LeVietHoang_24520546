@@ -1,19 +1,21 @@
-source: pcap TEST/fixtures/05-http-post.pcap
-parsed 1 events from 1 packets (0 skipped, 0 with errors)
+source: pcap TEST/capture-parser/fixtures/05-http-post.pcap
+wrote 2 records from 1 packets (0 dropped, 0 skipped, 0 with issues)
 {
   "packets_seen": 1,
-  "events_written": 1,
-  "events_skipped": 0,
-  "packets_with_errors": 0,
+  "records_written": {
+    "packet": 1,
+    "message": 0,
+    "flow": 1
+  },
+  "dropped": 0,
+  "skipped": 0,
+  "packets_with_issues": 0,
   "first_timestamp": 1759000000.1,
   "last_timestamp": 1759000000.1,
   "event_types": {
     "http_request": 1
   },
-  "network_protocols": {
-    "IPv4": 1
-  },
-  "transport_protocols": {
+  "protocols": {
     "TCP": 1
   },
   "application_protocols": {
@@ -22,10 +24,25 @@ parsed 1 events from 1 packets (0 skipped, 0 with errors)
   "detection_methods": {
     "port+payload": 1
   },
-  "error_codes": {},
+  "issue_codes": {},
+  "preprocess_status": {
+    "valid": 1
+  },
+  "processing_action": {
+    "forward": 1
+  },
+  "flow_end_reasons": {
+    "end_of_input": 1
+  },
+  "messages": {
+    "complete": 0,
+    "incomplete": 0
+  },
+  "stage_errors": {},
+  "active_flows": 1,
   "source": {
     "source": "pcap",
-    "origin": "TEST/fixtures/05-http-post.pcap",
+    "origin": "TEST/capture-parser/fixtures/05-http-post.pcap",
     "format": "pcap",
     "linktype": 1,
     "linktype_name": "EN10MB",
