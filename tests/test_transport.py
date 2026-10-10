@@ -2,6 +2,7 @@ import pytest
 from golden import TCP_DATA, TCP_FIN, TCP_SYN_OPTIONS, UDP
 
 from ids.errors import MalformedHeaderError, TruncatedPacketError, UnsupportedProtocolError
+from ids.issues import Issues
 from ids.parsers.link import parse_link
 from ids.parsers.network import parse_ipv4
 from ids.parsers.transport import parse_transport
@@ -9,14 +10,14 @@ from ids.parsers.transport import parse_transport
 
 def transport(frame, **overrides):
     link = parse_link(frame, 1)
-    net = parse_ipv4(link.payload)
+    net = parse_ipv4(link.payload, Issues("network"))
     kwargs = {
-        "src_ip": net.info["src_ip"],
-        "dst_ip": net.info["dst_ip"],
-        "declared_length": net.info["declared_payload_length"],
+        "src_ip": net.info.src_ip,
+        "dst_ip": net.info.dst_ip,
+        "declared_length": net.info.declared_payload_length,
     }
     kwargs.update(overrides)
-    return parse_transport(net.info["protocol_number"], net.payload, **kwargs)
+    return parse_transport(net.info.protocol_number, net.payload, **kwargs)
 
 
 def test_syn_with_options():
@@ -91,7 +92,7 @@ def test_udp_zero_checksum_means_not_computed():
 
 def test_checksum_is_not_verified_when_the_capture_is_short():
     link = parse_link(UDP, 1)
-    net = parse_ipv4(link.payload)
+    net = parse_ipv4(link.payload, Issues("network"))
     info = parse_transport(
         17, net.payload[:12], src_ip="10.0.0.1", dst_ip="10.0.0.2", declared_length=17
     ).info
