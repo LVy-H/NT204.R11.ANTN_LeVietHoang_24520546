@@ -421,6 +421,23 @@ def t12_udp_idle_timeout() -> list[Frame]:
     ]
 
 
+def t13_tcp_flow_stats() -> list[Frame]:
+    conn = TcpConversation()
+    return [
+        conn.client(0, "S"),
+        conn.server(250, "SA"),
+        conn.client(500, "A"),
+        conn.client(750, "PA", b"c" * 100),
+        conn.server(1000, "A"),
+        conn.server(1250, "PA", b"s" * 200),
+        conn.client(1500, "A"),
+        conn.client(1750, "PA", b"d" * 50),
+        conn.client(2000, "FA"),
+        conn.server(2250, "FA"),
+        conn.client(2500, "A"),
+    ]
+
+
 CASES: dict[str, Callable[[], list[Frame]] | Callable[[], list[str]]] = {
     "T01-http-url-decode.pcap": t01_http_url_decode,
     "T02-html-entities.pcap": t02_html_entities,
@@ -435,6 +452,7 @@ CASES: dict[str, Callable[[], list[Frame]] | Callable[[], list[str]]] = {
     "T10-udp-dns-flow.pcap": t10_udp_dns_flow,
     "T11-interleaved-flows.pcap": t11_interleaved_flows,
     "T12-udp-idle-timeout.pcap": t12_udp_idle_timeout,
+    "T13-tcp-flow-stats.pcap": t13_tcp_flow_stats,
 }
 
 

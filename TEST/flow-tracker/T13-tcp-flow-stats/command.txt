@@ -1,0 +1,1 @@
+.venv/bin/python main.py --pcap TEST/flow-tracker/fixtures/T13-tcp-flow-stats.pcap --output TEST/flow-tracker/T13-tcp-flow-stats/output.jsonl --flows-output TEST/flow-tracker/T13-tcp-flow-stats/flows.jsonl --stats

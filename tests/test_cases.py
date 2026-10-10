@@ -597,3 +597,25 @@ def test_t12_idle_udp_flow_is_exported_before_the_packet_that_expires_it(run_cas
     assert later["end_reason"] == "end_of_input"
     assert run.stats["active_flows"] == 1
     assert run.stats["flow_end_reasons"] == {"idle_timeout": 1, "end_of_input": 1}
+
+
+def test_t13_flow_counters_match_the_packet_mix(run_case):
+    run = run_case(FLOW_FIXTURES / "T13-tcp-flow-stats.pcap")
+    (flow,) = run.flows
+
+    assert run.exit_code == 0
+    assert (flow["packet_count"], flow["byte_count"], flow["payload_byte_count"]) == (11, 790, 350)
+    assert flow["forward"] == {"packet_count": 7, "byte_count": 430, "payload_byte_count": 150}
+    assert flow["backward"] == {"packet_count": 4, "byte_count": 360, "payload_byte_count": 200}
+    assert flow["tcp"] == {
+        "state": "CLOSED",
+        "syn_count": 2,
+        "ack_count": 10,
+        "fin_count": 2,
+        "rst_count": 0,
+        "handshake_complete": True,
+        "midstream": False,
+    }
+    assert (flow["start_time"], flow["last_seen"], flow["duration"]) == (at(0), at(2500), 2.5)
+    assert (flow["first_packet_id"], flow["last_packet_id"]) == (1, 11)
+    assert flow["end_reason"] == "closed"

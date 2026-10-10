@@ -47,3 +47,4 @@ dưới. Khi test, mọi record nằm chung một stream nên kiểm tra đượ
 | T10 | DNS query + response qua UDP | `T10-udp-dns-flow.pcap` | 1 flow UDP, `packet_count` = 2, `byte_count` = 141 (57 + 84, tổng IPv4 `total_length`), forward 1 / backward 1, `tcp` = `null` |
 | T11 | 3 flow xen kẽ (2 client TCP tới một server, 1 UDP) | `T11-interleaved-flows.pcap` | 3 `flow_id`; số packet / byte theo flow: 5 / 218, 4 / 167, 3 / 99 |
 | T12 | UDP idle timeout | `T12-udp-idle-timeout.pcap` | khoảng cách đúng 60 s vẫn cùng flow; flow 1 `end_reason` = `idle_timeout`, được ghi ra trước packet 4 (đến sau 61 s); `active_flows` = 1 |
+| T13 | Thống kê flow TCP hai chiều | `T13-tcp-flow-stats.pcap` | 11 packet, 790 byte, 350 byte payload; forward 7 / 430, backward 4 / 360; SYN 2 / ACK 10 / FIN 2 / RST 0; `duration` = 2.5 |
