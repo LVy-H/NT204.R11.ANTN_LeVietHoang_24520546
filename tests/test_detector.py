@@ -9,7 +9,8 @@ from golden import (
     SMTP_MAIL_FROM,
 )
 
-from ids.parsers.detector import STANDARD_PORTS, detect
+from ids.model import Detection
+from ids.parsers.detector import PORT_ONLY_CONFIDENCE, detect
 
 NOISE = bytes(range(256))
 TLS_CLIENT_HELLO = b"\x16\x03\x01\x00\x2c\x01\x00\x00\x28\x03\x03" + bytes(range(32))
@@ -17,9 +18,11 @@ TLS_CLIENT_HELLO = b"\x16\x03\x01\x00\x2c\x01\x00\x00\x28\x03\x03" + bytes(range
 
 def test_http_on_the_standard_port():
     result = detect(HTTP_GET, src_port=51234, dst_port=80, tcp=True)
+    assert isinstance(result, Detection)
     assert result.protocol == "HTTP"
     assert result.method == "port+payload"
     assert result.port_matched is True
+    assert result.port_hint == "HTTP"
     assert result.confidence == 1.0
 
 
@@ -62,6 +65,7 @@ def test_dns_query_on_a_non_standard_port():
     result = detect(DNS_QUERY, src_port=40000, dst_port=15353, tcp=False)
     assert result.protocol == "DNS"
     assert result.method == "payload"
+    assert result.confidence == 0.9
     assert "plausible question name" in result.evidence
     assert "known qtype A" in result.evidence
 
@@ -99,16 +103,47 @@ def test_weak_numeric_status_line_needs_the_port_hint():
     assert strong.method == "payload"
 
 
+def test_turn_is_detected_like_every_other_smtp_verb():
+    result = detect(b"TURN\r\n", src_port=40000, dst_port=4444, tcp=True)
+    assert result.protocol == "SMTP"
+    assert result.method == "payload"
+    assert result.confidence == 0.7
+
+
 def test_random_bytes_on_http_port_are_only_a_port_guess():
     result = detect(NOISE, src_port=51234, dst_port=80, tcp=True)
     assert result.protocol == "HTTP"
     assert result.method == "port"
-    assert result.confidence == 0.3
+    assert result.confidence == PORT_ONLY_CONFIDENCE
+    assert result.evidence == "standard port with no recognisable signature"
     assert result.scores["HTTP"] == 0.25
+
+
+def test_source_port_hint_wins_over_destination_port_hint():
+    result = detect(b"hello world\r\n", src_port=53, dst_port=80, tcp=False)
+    assert result.port_hint == "DNS"
+    assert result.protocol == "DNS"
+    assert result.method == "port"
+
+
+def test_payload_signature_beats_a_port_hint_for_another_protocol():
+    result = detect(SMTP_EHLO, src_port=40000, dst_port=80, tcp=True)
+    assert result.protocol == "SMTP"
+    assert result.method == "payload"
+    assert result.port_matched is False
+    assert result.port_hint == "HTTP"
 
 
 def test_random_bytes_on_an_unknown_port_stay_unknown():
     result = detect(NOISE, src_port=51234, dst_port=9999, tcp=True)
+    assert result.protocol == "UNKNOWN"
+    assert result.method == "none"
+    assert result.port_hint is None
+    assert result.evidence == "no signature matched and no standard port"
+
+
+def test_missing_ports_fall_back_to_payload_only():
+    result = detect(NOISE, src_port=None, dst_port=None, tcp=False)
     assert result.protocol == "UNKNOWN"
     assert result.port_hint is None
 
@@ -116,8 +151,10 @@ def test_random_bytes_on_an_unknown_port_stay_unknown():
 def test_empty_payload_is_never_attributed_to_a_protocol():
     result = detect(b"", src_port=51234, dst_port=80, tcp=True)
     assert result.protocol == "UNKNOWN"
+    assert result.method == "none"
     assert result.confidence == 0.0
     assert result.evidence == "no payload to inspect"
+    assert result.scores == {}
 
 
 def test_tls_on_443_is_not_mistaken_for_http():
@@ -134,10 +171,6 @@ def test_plain_text_on_an_unknown_port_is_unknown():
 @pytest.mark.parametrize("payload", [NOISE, b"\x00" * 64, b"\xff" * 64, DNS_QUERY, HTTP_GET])
 def test_scores_and_evidence_are_always_exposed(payload):
     result = detect(payload, src_port=1234, dst_port=5678, tcp=True)
-    assert set(result.scores) == {"HTTP", "DNS", "SMTP"}
+    assert list(result.scores) == ["HTTP", "DNS", "SMTP"]
     assert all(0.0 <= score <= 1.0 for score in result.scores.values())
     assert result.protocol in {"HTTP", "DNS", "SMTP", "UNKNOWN"}
-
-
-def test_standard_port_table_only_holds_known_protocols():
-    assert set(STANDARD_PORTS.values()) == {"HTTP", "DNS", "SMTP"}
