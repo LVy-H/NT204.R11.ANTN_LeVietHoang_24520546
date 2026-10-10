@@ -338,3 +338,8 @@ def test_review_malformed_absolute_form_authority_is_flagged_not_raised(uri):
     normalized, notes = normalize(http_event(("Host", "good.example"), uri=uri))
     assert (normalized.http.host, normalized.http.path) == (None, None)
     assert notes == ["invalid_host"]
+
+
+@pytest.mark.parametrize("text", ["a.com:" + "9" * 5000, "a.com:000080"])
+def test_review_port_text_longer_than_five_digits_is_rejected(text):
+    assert split_host(text) == ("a.com", None, ["invalid_host"])

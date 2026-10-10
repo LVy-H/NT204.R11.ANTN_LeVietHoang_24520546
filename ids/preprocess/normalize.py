@@ -108,7 +108,12 @@ def split_host(value: object) -> tuple[str | None, int | None, list[str]]:
     port: int | None = None
     notes: list[str] = []
     if colon and port_text:
-        if port_text.isascii() and port_text.isdigit() and int(port_text) <= MAX_PORT:
+        if (
+            len(port_text) <= 5
+            and port_text.isascii()
+            and port_text.isdigit()
+            and int(port_text) <= MAX_PORT
+        ):
             port = int(port_text)
         else:
             notes.append(INVALID_HOST)
