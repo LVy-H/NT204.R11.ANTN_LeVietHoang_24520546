@@ -153,7 +153,7 @@ def test_flow_limits_reject_out_of_range_values(flag, value, capsys):
 def test_flows_output_must_differ_from_output(tmp_path, capsys):
     out = tmp_path / "out.jsonl"
     with pytest.raises(SystemExit) as caught:
-        main(["-r", "in.pcap", "-o", str(out), "--flows-output", str(tmp_path / "." / "out.jsonl")])
+        main(["-r", "in.pcap", "-o", str(out), "--flows-output", f"{tmp_path}/./out.jsonl"])
     assert caught.value.code == 2
-    assert "--flows-output" in capsys.readouterr().err
+    assert "--flows-output must name a different file than --output" in capsys.readouterr().err
     assert not out.exists()
