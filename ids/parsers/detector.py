@@ -59,14 +59,6 @@ SMTP_CODES = frozenset(
     )
 )
 
-HTTP_REQUEST_LINE = re.compile(
-    rb"^(?:GET|POST|PUT|DELETE|HEAD|OPTIONS|PATCH|TRACE|CONNECT|PROPFIND|PROPPATCH|MKCOL|COPY|MOVE|LOCK|UNLOCK)"
-    rb"[ \t]+\S+[ \t]+HTTP/\d\.\d"
-)
-HTTP_STATUS_LINE = re.compile(rb"^HTTP/\d\.\d[ \t]+\d{3}")
-HTTP_METHOD_TOKEN = re.compile(rb"^[A-Z]{3,12}[ \t]+\S")
-HTTP_VERSION_TOKEN = re.compile(rb"HTTP/\d\.\d")
-
 SMTP_HELLO = re.compile(rb"^(?:HELO|EHLO)[ \t]+\S", re.IGNORECASE)
 SMTP_PATH = re.compile(rb"^(?:MAIL|RCPT)[ \t]+(?:FROM|TO)[ \t]*:", re.IGNORECASE)
 SMTP_VERB = re.compile(
@@ -88,19 +80,6 @@ def _plausible_name(name: str) -> bool:
     return all(
         PLAUSIBLE_LABEL.match(label.encode("latin-1", "replace")) for label in labels if label
     )
-
-
-def http_score(payload: bytes) -> tuple[float, str | None]:
-    line = http.first_line(payload[:512])
-    if HTTP_STATUS_LINE.match(line):
-        return 0.95, "HTTP status line"
-    if HTTP_REQUEST_LINE.match(line):
-        return 0.95, "HTTP request line"
-    if HTTP_METHOD_TOKEN.match(line):
-        if HTTP_VERSION_TOKEN.search(payload[:512]):
-            return 0.8, "HTTP request line without a strict version token"
-        return 0.6, "HTTP method token"
-    return 0.0, None
 
 
 def dns_score(payload: bytes, tcp: bool) -> tuple[float, str | None]:
@@ -164,7 +143,7 @@ def detect(payload: bytes, *, src_port=None, dst_port=None, tcp: bool = False) -
     scores: dict[str, float] = {}
     evidence: dict[str, str | None] = {}
     for name, (score, why) in (
-        ("HTTP", http_score(payload)),
+        ("HTTP", http.score(payload, tcp)),
         ("DNS", dns_score(payload, tcp)),
         ("SMTP", smtp_score(payload)),
     ):

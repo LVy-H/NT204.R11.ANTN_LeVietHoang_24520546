@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import re
-from urllib.parse import parse_qs, urlsplit
 
-from ..errors import DecodeError
-from ..payload import describe
+from ..issues import Issues, ParseError
+from ..model import HttpBody, HttpHeader, HttpMessage
+
+NAME = "HTTP"
+PORTS = frozenset((80, 3128, 8000, 8008, 8080, 8081, 8888, 9080))
 
 METHODS = frozenset(b"GET POST PUT DELETE HEAD OPTIONS PATCH TRACE CONNECT PROPFIND".split())
 METHODS |= frozenset(b"PROPPATCH MKCOL COPY MOVE LOCK UNLOCK".split())
@@ -14,8 +16,16 @@ STATUS_LINE = re.compile(rb"^HTTP/(\d+\.\d+)[ \t]+(\d{3})(?:[ \t]+(.*))?$")
 HEADER_LINE = re.compile(rb"^([!-9;-~]+):[ \t]*(.*)$")
 CONTINUATION = re.compile(rb"^[ \t]+(.*)$")
 
+KNOWN_REQUEST_PREFIX = re.compile(
+    rb"^(?:" + rb"|".join(sorted(METHODS)) + rb")[ \t]+\S+[ \t]+HTTP/\d\.\d"
+)
+STATUS_PREFIX = re.compile(rb"^HTTP/\d\.\d[ \t]+\d{3}")
+METHOD_TOKEN = re.compile(rb"^[A-Z]{3,12}[ \t]+\S")
+VERSION_TOKEN = re.compile(rb"HTTP/\d\.\d")
+
 MAX_HEADER_BYTES = 65536
-FORM_TYPES = ("application/x-www-form-urlencoded",)
+SCORE_WINDOW = 512
+SEPARATORS = (b"\r\n\r\n", b"\n\n")
 
 
 def first_line(data: bytes) -> bytes:
@@ -26,54 +36,61 @@ def first_line(data: bytes) -> bytes:
     return data if end < 0 else data[:end]
 
 
-def _split(data: bytes) -> tuple[bytes, bytes, bool]:
-    for separator in (b"\r\n\r\n", b"\n\n"):
-        index = data.find(separator)
-        if 0 <= index <= MAX_HEADER_BYTES:
-            return data[:index], data[index + len(separator) :], True
-    return data[:MAX_HEADER_BYTES], b"", False
+def score(payload: bytes, tcp: bool) -> tuple[float, str | None]:
+    window = payload[:SCORE_WINDOW]
+    line = first_line(window)
+    if STATUS_PREFIX.match(line):
+        return 0.95, "HTTP status line"
+    if KNOWN_REQUEST_PREFIX.match(line):
+        return 0.95, "HTTP request line"
+    if METHOD_TOKEN.match(line):
+        if VERSION_TOKEN.search(window):
+            return 0.8, "HTTP request line without a strict version token"
+        return 0.6, "HTTP method token"
+    return 0.0, None
 
 
-def _headers(block: bytes, errors: list[dict]) -> tuple[dict, list[str]]:
-    headers: dict[str, list[str]] = {}
-    order: list[str] = []
-    for raw in block.splitlines()[1:]:
+def _split(payload: bytes) -> tuple[int, int, bool]:
+    """Return (header block end, body offset, terminator found); the earliest terminator wins."""
+    found = []
+    for separator in SEPARATORS:
+        index = payload.find(separator, 0, MAX_HEADER_BYTES + len(separator))
+        if index >= 0:
+            found.append((index, index + len(separator)))
+    if found:
+        block_end, body_offset = min(found)
+        return block_end, body_offset, True
+    return min(len(payload), MAX_HEADER_BYTES), len(payload), False
+
+
+def _headers(lines: list[bytes], issues: Issues) -> list[HttpHeader]:
+    headers: list[HttpHeader] = []
+    for raw in lines:
         if not raw:
             continue
         continuation = CONTINUATION.match(raw)
-        if continuation and order:
-            last = order[-1]
-            headers[last][-1] = (
-                f"{headers[last][-1]} {continuation.group(1).decode('latin-1').strip()}"
-            )
+        if continuation and headers:
+            last = headers[-1]
+            last.value = f"{last.value} {continuation.group(1).decode('latin-1').strip()}"
             continue
         match = HEADER_LINE.match(raw)
         if not match:
-            errors.append(
-                {
-                    "stage": "application",
-                    "code": "malformed_header_line",
-                    "message": "HTTP header line has no field name",
-                    "context": {"line": raw[:120].decode("latin-1", "replace")},
-                }
+            issues.add(
+                "malformed_header_line",
+                "HTTP header line has no field name",
+                line=raw[:120].decode("latin-1"),
             )
             continue
-        name = match.group(1).decode("latin-1").strip().lower()
-        value = match.group(2).decode("latin-1").strip()
-        if name in headers:
-            headers[name].append(value)
-        else:
-            headers[name] = [value]
-            order.append(name)
-    return headers, order
+        headers.append(
+            HttpHeader(
+                name=match.group(1).decode("latin-1"),
+                value=match.group(2).decode("latin-1").strip(),
+            )
+        )
+    return headers
 
 
-def _last(headers: dict, name: str):
-    values = headers.get(name)
-    return values[-1] if values else None
-
-
-def _int_or_none(value):
+def _int_or_none(value: str | None) -> int | None:
     if value is None:
         return None
     try:
@@ -82,141 +99,80 @@ def _int_or_none(value):
         return None
 
 
-def _body(data: bytes, headers: dict, complete: bool, errors: list[dict]) -> dict:
-    transfer = _last(headers, "transfer-encoding")
+def _body(
+    message: HttpMessage, offset: int, available: int, complete: bool, issues: Issues
+) -> HttpBody:
+    transfer = message.header("transfer-encoding")
     if transfer and "chunked" in transfer.lower():
-        summary = describe(data)
-        summary["encoding"] = "chunked"
-        summary["chunked_decoded"] = False
-        summary["declared_length"] = None
-        summary["truncated"] = False
-        return summary
+        return HttpBody(
+            offset=offset, length=available, transfer_encoding="chunked", truncated=False
+        )
 
-    declared = _last(headers, "content-length")
+    declared = message.header("content-length")
     declared_length = _int_or_none(declared)
+    length = available
     truncated = False
     if declared is not None and declared_length is None:
-        errors.append(
-            {
-                "stage": "application",
-                "code": "invalid_content_length",
-                "message": f"Content-Length {declared!r} is not an integer",
-            }
-        )
+        issues.add("invalid_content_length", f"Content-Length {declared!r} is not an integer")
     if declared_length is not None:
         if declared_length < 0:
-            errors.append(
-                {
-                    "stage": "application",
-                    "code": "invalid_content_length",
-                    "message": f"Content-Length {declared_length} is negative",
-                }
-            )
+            issues.add("invalid_content_length", f"Content-Length {declared_length} is negative")
             declared_length = None
+        elif declared_length > available:
+            truncated = True
+            issues.add(
+                "truncated_body",
+                "HTTP body is shorter than Content-Length",
+                declared=declared_length,
+                captured=available,
+            )
         else:
-            truncated = declared_length > len(data)
-            if truncated:
-                errors.append(
-                    {
-                        "stage": "application",
-                        "code": "truncated_body",
-                        "message": "HTTP body is shorter than Content-Length",
-                        "context": {"declared": declared_length, "captured": len(data)},
-                    }
-                )
-            data = data[:declared_length]
+            length = declared_length
     elif not complete:
-        errors.append(
-            {
-                "stage": "application",
-                "code": "incomplete_message",
-                "message": "HTTP message header terminator not found in the captured bytes",
-            }
+        issues.add(
+            "incomplete_message",
+            "HTTP message header terminator not found in the captured bytes",
         )
-
-    summary = describe(data)
-    summary["encoding"] = "identity"
-    summary["declared_length"] = declared_length
-    summary["truncated"] = truncated
-    return summary
-
-
-def _target(uri: str) -> dict:
-    parts = urlsplit(uri)
-    query = parse_qs(parts.query, keep_blank_values=True)
-    return {
-        "uri": uri,
-        "path": parts.path,
-        "query": parts.query,
-        "query_params": dict(query),
-        "authority": parts.netloc,
-        "scheme": parts.scheme or None,
-    }
+    return HttpBody(
+        offset=offset,
+        length=length,
+        declared_length=declared_length,
+        transfer_encoding="identity",
+        truncated=truncated,
+    )
 
 
-def parse(payload: bytes) -> dict:
+def parse(payload: bytes, *, tcp: bool, issues: Issues) -> HttpMessage:
     if not payload:
-        raise DecodeError("HTTP payload is empty", stage="application")
+        raise ParseError("decode_error", "HTTP payload is empty")
 
-    block, rest, complete = _split(payload)
-    lines = block.splitlines()
+    block_end, body_offset, complete = _split(payload)
+    lines = payload[:block_end].splitlines()
     if not lines:
-        raise DecodeError("HTTP message has no start line", stage="application")
+        raise ParseError("decode_error", "HTTP message has no start line")
 
-    errors: list[dict] = []
-    request = REQUEST_LINE.match(lines[0])
-    status = STATUS_LINE.match(lines[0])
+    start = lines[0]
+    message = HttpMessage(start_line=start.decode("latin-1"), complete=complete)
+    request = REQUEST_LINE.match(start)
     if request:
-        method, uri, version = request.group(1), request.group(2), request.group(3)
-    elif status:
-        method = uri = None
-        version = status.group(1)
+        message.kind = "request"
+        message.method = request.group(1).decode("ascii")
+        message.uri = request.group(2).decode("latin-1")
+        message.version = request.group(3).decode("ascii")
     else:
-        raise DecodeError(
-            "payload does not start with an HTTP request or status line",
-            stage="application",
-            start_line=first_line(block)[:120].decode("latin-1", "replace"),
-        )
-
-    headers, order = _headers(block, errors)
-    info: dict = {
-        "version": version.decode("ascii"),
-        "headers": {
-            name: (values[0] if len(values) == 1 else values) for name, values in headers.items()
-        },
-        "header_order": order,
-        "header_count": len(order),
-        "host": _last(headers, "host"),
-        "content_type": _last(headers, "content-type"),
-        "content_length": _last(headers, "content-length"),
-        "connection": _last(headers, "connection"),
-        "body": _body(rest, headers, complete, errors),
-        "errors": errors,
-    }
-
-    if request:
-        info["kind"] = "request"
-        info["method"] = method.decode("ascii")
-        info.update(_target(uri.decode("latin-1")))
-        info["user_agent"] = _last(headers, "user-agent")
-        info["referer"] = _last(headers, "referer")
-        info["accept"] = _last(headers, "accept")
-        cookies = _last(headers, "cookie")
-        info["cookie"] = cookies
-        info["cookie_count"] = len(cookies.split(";")) if cookies else 0
-        content_type = _last(headers, "content-type") or ""
-        if any(content_type.lower().startswith(kind) for kind in FORM_TYPES):
-            form_length = _int_or_none(_last(headers, "content-length"))
-            raw_form = rest[:form_length] if form_length is not None else rest
-            form = parse_qs(raw_form.decode("latin-1", "replace"), keep_blank_values=True)
-            info["form"] = dict(form)
-    else:
-        info["kind"] = "response"
-        info["status_code"] = int(status.group(2))
+        status = STATUS_LINE.match(start)
+        if not status:
+            raise ParseError(
+                "decode_error",
+                "payload does not start with an HTTP request or status line",
+                start_line=start[:120].decode("latin-1"),
+            )
+        message.kind = "response"
+        message.version = status.group(1).decode("ascii")
+        message.status_code = int(status.group(2))
         reason = status.group(3)
-        info["reason"] = reason.decode("latin-1").strip() if reason else ""
-        info["server"] = _last(headers, "server")
-        cookies = headers.get("set-cookie")
-        info["set_cookie"] = cookies if cookies else None
+        message.reason = reason.decode("latin-1").strip() if reason else ""
 
-    return info
+    message.headers = _headers(lines[1:], issues)
+    message.body = _body(message, body_offset, len(payload) - body_offset, complete, issues)
+    return message
