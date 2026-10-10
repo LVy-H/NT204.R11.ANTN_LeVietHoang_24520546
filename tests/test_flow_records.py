@@ -188,6 +188,21 @@ def test_byte_counts_fall_back_to_the_captured_payload_length():
     assert (packet_bytes(PacketEvent()), payload_bytes(PacketEvent())) == (0, 0)
 
 
+def test_negative_or_non_int_lengths_count_as_absent():
+    negative = PacketEvent(
+        network=Ipv4Info(total_length=-500),
+        transport=UdpInfo(payload_length=-40),
+        payload=Payload(length=12),
+    )
+    assert (packet_bytes(negative), payload_bytes(negative)) == (12, 12)
+    odd = PacketEvent(
+        network=Ipv4Info(total_length=True),
+        transport=UdpInfo(payload_length=1.5),
+        payload=Payload(length=-3),
+    )
+    assert (packet_bytes(odd), payload_bytes(odd)) == (0, 0)
+
+
 def test_packet_time_prefers_the_normalized_timestamp():
     event = udp_event(1, 1759000000123.0, CLIENT, SERVER)  # milliseconds in a loaded event
     event.normalized = Normalized(timestamp=1759000000.123)

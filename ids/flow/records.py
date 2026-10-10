@@ -25,22 +25,28 @@ def packet_time(event: PacketEvent) -> float | None:
     return float(value)
 
 
+def _first_length(*values: object) -> int:
+    """First value that is a non-negative int (loaded events may carry anything), else 0."""
+    for value in values:
+        if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
+            return value
+    return 0
+
+
 def packet_bytes(event: PacketEvent) -> int:
     """IPv4 total length, else captured payload length, else 0."""
-    if event.network is not None and event.network.total_length is not None:
-        return event.network.total_length
-    if event.payload is not None and event.payload.length is not None:
-        return event.payload.length
-    return 0
+    return _first_length(
+        event.network.total_length if event.network is not None else None,
+        event.payload.length if event.payload is not None else None,
+    )
 
 
 def payload_bytes(event: PacketEvent) -> int:
     """Transport payload length, else captured payload length, else 0."""
-    if event.transport is not None and event.transport.payload_length is not None:
-        return event.transport.payload_length
-    if event.payload is not None and event.payload.length is not None:
-        return event.payload.length
-    return 0
+    return _first_length(
+        event.transport.payload_length if event.transport is not None else None,
+        event.payload.length if event.payload is not None else None,
+    )
 
 
 class FlowState:

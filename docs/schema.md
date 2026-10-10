@@ -270,7 +270,7 @@ Written once per flow when it ends.
 | `endpoint_a`, `endpoint_b` | `{ip, port}` | A is the initiator: sender of the first SYN without ACK, the destination of a first SYN-ACK, else the sender of the first packet |
 | `start_time`, `last_seen` | float | Earliest and latest packet time |
 | `duration` | float | `last_seen - start_time`, rounded to microseconds |
-| `packet_count`, `byte_count`, `payload_byte_count` | int | Totals; `byte_count` sums IPv4 `total_length` (payload length when absent) |
+| `packet_count`, `byte_count`, `payload_byte_count` | int | Totals; `byte_count` sums IPv4 `total_length` (payload length when absent), `payload_byte_count` sums the transport `payload_length` (same fallback); a negative length counts as absent |
 | `forward`, `backward` | object | `{packet_count, byte_count, payload_byte_count}` per direction |
 | `tcp` | object \| null | `{state, syn_count, ack_count, fin_count, rst_count, handshake_complete, midstream}`; flag counters count packets with the flag set; `null` for UDP |
 | `end_reason` | str | §5 |
