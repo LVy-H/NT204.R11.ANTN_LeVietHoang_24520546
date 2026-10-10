@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from ids.flow.table import FlowTable
 from ids.model import (
     ApplicationInfo,
     Detection,
@@ -90,3 +91,14 @@ def udp_event(
         application=application,
         payload=Payload(length=len(payload), data=payload),
     )
+
+
+def make_table(**overrides) -> FlowTable:
+    config = {
+        "tcp_idle_timeout": 300.0,
+        "udp_idle_timeout": 60.0,
+        "tcp_closed_timeout": 5.0,
+        "max_flows": 100,
+    }
+    config.update(overrides)
+    return FlowTable(**config)
