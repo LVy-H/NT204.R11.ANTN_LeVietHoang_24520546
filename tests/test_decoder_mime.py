@@ -295,3 +295,26 @@ def test_nul_in_rfc2231_parameter_charset_does_not_raise():
     assert result.parts[0].size == 2
     assert [i.code for i in issues.records] == ["invalid_charset_bytes"]
     assert issues.records[0].context["part"] == 0
+
+    multipart = (
+        b"Content-Type: multipart/mixed; boundary*=a\x00b''x\r\n\r\n--x\r\n\r\nhi\r\n--x--\r\n"
+    )
+
+    result = decode_message(multipart, Issues("decoder"))
+
+    assert len(result.parts) == 1
+
+
+def test_lone_surrogate_in_rfc2231_filename_is_dropped():
+    issues = Issues("decoder")
+    data = (
+        b"MIME-Version: 1.0\r\nContent-Type: application/octet-stream\r\n"
+        b"Content-Disposition: attachment; filename*=unicode_escape''%5Cud800\r\n\r\nhi"
+    )
+
+    result = decode_message(data, issues)
+
+    assert result.parts[0].filename is None
+    assert [i.code for i in issues.records] == ["invalid_charset_bytes"]
+    assert issues.records[0].context["part"] == 0
+    json.dumps(to_jsonable(result), ensure_ascii=False).encode("utf-8")

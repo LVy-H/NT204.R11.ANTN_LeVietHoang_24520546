@@ -14,7 +14,16 @@ from ..model import DecodedMime, DecodeStatus, MimeHeaders, MimePart, worst_stat
 from ..payload import sha256_hex
 from .text import decode_text
 
-_PARSER = BytesParser(policy=policy.compat32)
+
+class _SafeMessage(Message):
+    def get_boundary(self, failobj: str | None = None) -> str | None:
+        try:
+            return super().get_boundary(failobj)
+        except ValueError:  # RFC 2231 charset name with NUL; the feedparser calls this unguarded
+            return failobj
+
+
+_PARSER = BytesParser(_class=_SafeMessage, policy=policy.compat32)
 _MIME_HEADER = re.compile(
     rb"^(?:mime-version|content-type|content-transfer-encoding)[ \t]*:",
     re.IGNORECASE | re.MULTILINE,
@@ -165,10 +174,19 @@ def _raw_body(part: Message) -> bytes:
 
 def _param(part: Message, getter: str, index: int, issues: Issues) -> str | None:
     try:
-        return getattr(part, getter)()
+        value = getattr(part, getter)()
     except ValueError as error:  # RFC 2231 charset name with NUL (str(bytes, name))
         issues.add("invalid_charset_bytes", f"part {index} {getter}: {error}", part=index)
         return None
+    if isinstance(value, str):
+        try:
+            value.encode("utf-8")
+        except UnicodeEncodeError:  # RFC 2231 value decoded to lone surrogates
+            issues.add(
+                "invalid_charset_bytes", f"part {index} {getter}: lone surrogate", part=index
+            )
+            return None
+    return value
 
 
 def _part(index: int, part: Message, issues: Issues, max_bytes: int) -> MimePart:
