@@ -92,6 +92,20 @@ def test_folded_encoded_words_join_without_the_folding_space():
     assert decode_message(data, Issues("decoder")).headers.subject == "Xin chào"
 
 
+def test_header_over_the_input_bound_is_cut_before_decoding_and_reported():
+    # 1000 encoded words of 16 characters each; the 8192-character bound keeps 512 of them
+    data = b"Subject: " + b"=?utf-8?q?abc?= " * 1000 + b"\r\nTo: bob@example.test\r\n\r\nbody\r\n"
+    issues = Issues("decoder")
+
+    result = decode_message(data, issues)
+
+    assert result.headers.subject == "abc" * 512
+    assert result.headers.to == "bob@example.test"
+    assert [(i.code, i.context) for i in issues.records] == [
+        ("decoded_truncated", {"field": "subject"})
+    ]
+
+
 def test_single_part_base64_message():
     data = single("base64", b"WGluIGNo\r\nw6Bv\r\n", b"text/plain; charset=utf-8")
 

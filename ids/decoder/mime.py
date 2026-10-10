@@ -44,6 +44,8 @@ _B64_WHITESPACE = b" \t\r\n\x0b\x0c"
 _B64_OUTSIDE_ALPHABET = re.compile(rb"[^A-Za-z0-9+/=]")
 _QP_MALFORMED = re.compile(rb"=(?![0-9A-Fa-f]{2}|\r?\n|\Z)")
 _UNCHANGED_ENCODINGS = frozenset({"7bit", "8bit", "binary"})
+# decode_header is quadratic in the number of encoded words, so its input is bounded
+MAX_HEADER_CHARS = 8192
 
 
 def has_mime_headers(data: bytes) -> bool:
@@ -112,6 +114,13 @@ def _header(message: Message, name: str, issues: Issues, max_bytes: int) -> str 
         return None
     if isinstance(value, str):  # compat32 hands out raw 8-bit headers as Header objects
         value = _FOLD.sub("", value)
+        if len(value) > MAX_HEADER_CHARS:
+            value = value[:MAX_HEADER_CHARS]
+            issues.add(
+                "decoded_truncated",
+                f"{name} header cut at {MAX_HEADER_CHARS} characters before decoding",
+                field=field,
+            )
     try:
         chunks = decode_header(value)
     except HeaderParseError as error:

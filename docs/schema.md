@@ -202,7 +202,8 @@ The deepest bytes reached (application payload for TCP/UDP).
   message) is read as `multipart/mixed; boundary="X"`, so its parts split and the close
   delimiter is dropped; its `headers` are all `null`.
 - `headers`: `{subject, from, to, cc, date, message_id}`, RFC 2047 words decoded, `null`
-  when absent.
+  when absent. A header longer than 8192 characters is cut there before decoding
+  (issue `decoded_truncated`, `field` = the header name in lower case).
 - `parts`: leaf parts only, in tree order: `{index (0-based), content_type (lower case,
   no parameters), charset, transfer_encoding (lower case or null), filename, size (decoded
   bytes), sha256 (of decoded bytes), text (text/* parts), status, truncated}`.
