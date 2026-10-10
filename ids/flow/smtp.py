@@ -107,6 +107,7 @@ class SmtpReassembler:
     def _collect(
         self, seq: int | None, data: bytes, length: int, packet_id: int | None, timestamp: float
     ) -> MessageEvent | None:
+        gap_before = self._gap
         offset = 0
         if seq is not None and self._next_seq is not None:
             offset = _seq_offset(seq, self._next_seq)
@@ -131,7 +132,7 @@ class SmtpReassembler:
         self._end = timestamp
 
         # The body start counts as a line start, unless bytes before it were never captured.
-        prefix = self._tail if self._seen or offset > 0 else b"\r\n"
+        prefix = self._tail if self._seen or offset > 0 or gap_before else b"\r\n"
         cut = (prefix + data[:4]).find(TERMINATOR)
         if cut >= 0:
             cut += len(TERMINATOR) - len(prefix)

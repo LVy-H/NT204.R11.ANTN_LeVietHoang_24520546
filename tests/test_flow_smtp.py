@@ -357,3 +357,13 @@ def test_body_start_is_no_line_start_after_missing_bytes():
     message = exchange.client(b".\r\nrest\r\n.\r\n", seq=exchange.client_seq + 10)
     assert message.data == b".\r\nrest\r\n.\r\n"
     assert message.gap is True
+
+
+@pytest.mark.parametrize("skip", [0, 10])
+def test_body_start_is_no_line_start_after_an_earlier_empty_gap_segment(skip):
+    exchange = Exchange()
+    exchange.start()
+    assert _short_segment(exchange, b"", exchange.client_seq + skip, 10) is None
+    message = exchange.client(b".\r\nrest\r\n.\r\n")
+    assert message.data == b".\r\nrest\r\n.\r\n"
+    assert message.gap is True
