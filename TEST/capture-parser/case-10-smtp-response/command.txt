@@ -1,1 +1,1 @@
-.venv/bin/python main.py --pcap TEST/fixtures/10-smtp-response.pcap --output TEST/case-10-smtp-response/output.jsonl --stats
+.venv/bin/python main.py --pcap TEST/capture-parser/fixtures/10-smtp-response.pcap --output TEST/capture-parser/case-10-smtp-response/output.jsonl --flows-output TEST/capture-parser/case-10-smtp-response/flows.jsonl --stats
