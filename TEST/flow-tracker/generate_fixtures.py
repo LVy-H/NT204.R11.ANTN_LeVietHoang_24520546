@@ -438,6 +438,40 @@ def t13_tcp_flow_stats() -> list[Frame]:
     ]
 
 
+def t14_event(packet_id: int, *, drop: tuple[str, ...] = (), **changes: object) -> str:
+    fields: dict[str, object] = {
+        "schema_version": 2,
+        "record_type": "packet",
+        "packet_id": packet_id,
+        "timestamp": 1759000000.0,
+        "src_ip": CLIENT,
+        "dst_ip": SERVER,
+        "protocol": "TCP",
+        "src_port": CLIENT_PORT,
+        "dst_port": APP_PORT,
+    }
+    fields.update(changes)
+    for name in drop:
+        del fields[name]
+    return event(**fields)
+
+
+def t14_malformed_event() -> list[str]:
+    return [
+        "this is not json",
+        t14_event(2, timestamp="yesterday"),
+        t14_event(3, src_port="abc"),
+        t14_event(4, dst_port=70000),
+        t14_event(5, drop=("src_ip",)),
+        t14_event(6, schema_version=9),
+        t14_event(7, record_type="bogus"),
+        "",
+        event(schema_version=2, record_type="flow", flow_id="0123456789abcdef"),
+        '{"schema_version": 2, "packet_id": ',
+        t14_event(11),
+    ]
+
+
 CASES: dict[str, Callable[[], list[Frame]] | Callable[[], list[str]]] = {
     "T01-http-url-decode.pcap": t01_http_url_decode,
     "T02-html-entities.pcap": t02_html_entities,
@@ -453,6 +487,7 @@ CASES: dict[str, Callable[[], list[Frame]] | Callable[[], list[str]]] = {
     "T11-interleaved-flows.pcap": t11_interleaved_flows,
     "T12-udp-idle-timeout.pcap": t12_udp_idle_timeout,
     "T13-tcp-flow-stats.pcap": t13_tcp_flow_stats,
+    "T14-malformed-event.jsonl": t14_malformed_event,
 }
 
 

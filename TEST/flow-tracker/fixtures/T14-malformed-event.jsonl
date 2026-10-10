@@ -1,0 +1,11 @@
+this is not json
+{"schema_version":2,"record_type":"packet","packet_id":2,"timestamp":"yesterday","src_ip":"10.0.0.1","dst_ip":"10.0.0.2","protocol":"TCP","src_port":51234,"dst_port":9000}
+{"schema_version":2,"record_type":"packet","packet_id":3,"timestamp":1759000000.0,"src_ip":"10.0.0.1","dst_ip":"10.0.0.2","protocol":"TCP","src_port":"abc","dst_port":9000}
+{"schema_version":2,"record_type":"packet","packet_id":4,"timestamp":1759000000.0,"src_ip":"10.0.0.1","dst_ip":"10.0.0.2","protocol":"TCP","src_port":51234,"dst_port":70000}
+{"schema_version":2,"record_type":"packet","packet_id":5,"timestamp":1759000000.0,"dst_ip":"10.0.0.2","protocol":"TCP","src_port":51234,"dst_port":9000}
+{"schema_version":9,"record_type":"packet","packet_id":6,"timestamp":1759000000.0,"src_ip":"10.0.0.1","dst_ip":"10.0.0.2","protocol":"TCP","src_port":51234,"dst_port":9000}
+{"schema_version":2,"record_type":"bogus","packet_id":7,"timestamp":1759000000.0,"src_ip":"10.0.0.1","dst_ip":"10.0.0.2","protocol":"TCP","src_port":51234,"dst_port":9000}
+
+{"schema_version":2,"record_type":"flow","flow_id":"0123456789abcdef"}
+{"schema_version": 2, "packet_id": 
+{"schema_version":2,"record_type":"packet","packet_id":11,"timestamp":1759000000.0,"src_ip":"10.0.0.1","dst_ip":"10.0.0.2","protocol":"TCP","src_port":51234,"dst_port":9000}

@@ -1,0 +1,58 @@
+source: events TEST/flow-tracker/fixtures/T14-malformed-event.jsonl
+warning: line 9: skipped record_type 'flow'
+wrote 10 records from 9 packets (0 dropped, 0 skipped, 6 with issues)
+{
+  "packets_seen": 9,
+  "records_written": {
+    "packet": 9,
+    "message": 0,
+    "flow": 1
+  },
+  "dropped": 0,
+  "skipped": 0,
+  "packets_with_issues": 6,
+  "first_timestamp": 1759000000.0,
+  "last_timestamp": 1759000000.0,
+  "event_types": {
+    "tcp_segment": 7,
+    "unparsed": 2
+  },
+  "protocols": {
+    "TCP": 7,
+    "none": 2
+  },
+  "application_protocols": {
+    "UNKNOWN": 9
+  },
+  "detection_methods": {},
+  "issue_codes": {
+    "load/invalid_json": 2,
+    "load/invalid_type": 2,
+    "load/unsupported_schema": 2
+  },
+  "preprocess_status": {
+    "invalid": 6,
+    "partial": 2,
+    "valid": 1
+  },
+  "processing_action": {
+    "mark": 8,
+    "forward": 1
+  },
+  "flow_end_reasons": {
+    "end_of_input": 1
+  },
+  "messages": {
+    "complete": 0,
+    "incomplete": 0
+  },
+  "stage_errors": {},
+  "active_flows": 1,
+  "source": {
+    "source": "events",
+    "origin": "TEST/flow-tracker/fixtures/T14-malformed-event.jsonl",
+    "count_limit": null,
+    "events_loaded": 9,
+    "skipped_records": 1
+  }
+}

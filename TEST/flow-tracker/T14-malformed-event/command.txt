@@ -1,0 +1,1 @@
+.venv/bin/python main.py --events TEST/flow-tracker/fixtures/T14-malformed-event.jsonl --output TEST/flow-tracker/T14-malformed-event/output.jsonl --flows-output TEST/flow-tracker/T14-malformed-event/flows.jsonl --stats

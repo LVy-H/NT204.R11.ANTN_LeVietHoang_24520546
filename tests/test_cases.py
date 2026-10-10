@@ -619,3 +619,42 @@ def test_t13_flow_counters_match_the_packet_mix(run_case):
     assert (flow["start_time"], flow["last_seen"], flow["duration"]) == (at(0), at(2500), 2.5)
     assert (flow["first_packet_id"], flow["last_packet_id"]) == (1, 11)
     assert flow["end_reason"] == "closed"
+
+
+STUB_REASON = ["missing_field:timestamp", "unsupported_protocol:unknown", "load/invalid_json"]
+
+
+def test_t14_every_malformed_event_line_yields_a_marked_record(run_case):
+    run = run_case(FLOW_FIXTURES / "T14-malformed-event.jsonl")
+
+    assert run.exit_code == 0
+    outcome = {
+        p["packet_id"]: (p["preprocess_status"], p["processing_action"], p["reason"])
+        for p in run.packets
+    }
+    assert outcome == {
+        1: ("invalid", "mark", STUB_REASON),
+        2: ("invalid", "mark", ["invalid_timestamp", "load/invalid_type"]),
+        3: ("invalid", "mark", ["invalid_port:src_port", "load/invalid_type"]),
+        4: ("invalid", "mark", ["invalid_port:dst_port"]),
+        5: ("invalid", "mark", ["missing_field:src_ip"]),
+        6: ("partial", "mark", ["load/unsupported_schema"]),
+        7: ("partial", "mark", ["load/unsupported_schema"]),
+        10: ("invalid", "mark", STUB_REASON),
+        11: ("valid", "forward", []),
+    }
+    assert [p["packet_id"] for p in run.packets] == [1, 2, 3, 4, 5, 6, 7, 10, 11]
+    assert all(p["flow"] is None for p in run.packets if p["preprocess_status"] == "invalid")
+    assert all(p["flow"] is not None for p in run.packets if p["preprocess_status"] != "invalid")
+    assert run.packet(1)["timestamp"] is None
+    assert [(i["stage"], i["code"]) for i in run.packet(1)["issues"]] == [("load", "invalid_json")]
+    assert run.packet(4)["dst_port"] == 70000
+
+
+def test_t14_blank_and_flow_lines_are_skipped_without_shifting_line_numbers(run_case):
+    run = run_case(FLOW_FIXTURES / "T14-malformed-event.jsonl")
+
+    assert "warning: line 9: skipped record_type 'flow'" in run.stderr
+    assert run.packet(10)["issues"][0]["code"] == "invalid_json"
+    assert run.stats["packets_seen"] == 9
+    assert run.stats["preprocess_status"] == {"invalid": 6, "partial": 2, "valid": 1}

@@ -48,3 +48,24 @@ dưới. Khi test, mọi record nằm chung một stream nên kiểm tra đượ
 | T11 | 3 flow xen kẽ (2 client TCP tới một server, 1 UDP) | `T11-interleaved-flows.pcap` | 3 `flow_id`; số packet / byte theo flow: 5 / 218, 4 / 167, 3 / 99 |
 | T12 | UDP idle timeout | `T12-udp-idle-timeout.pcap` | khoảng cách đúng 60 s vẫn cùng flow; flow 1 `end_reason` = `idle_timeout`, được ghi ra trước packet 4 (đến sau 61 s); `active_flows` = 1 |
 | T13 | Thống kê flow TCP hai chiều | `T13-tcp-flow-stats.pcap` | 11 packet, 790 byte, 350 byte payload; forward 7 / 430, backward 4 / 360; SYN 2 / ACK 10 / FIN 2 / RST 0; `duration` = 2.5 |
+| T14 | Event lỗi: không phải JSON, sai kiểu, port 70000, thiếu `src_ip`, `schema_version` 9, `record_type` lạ | `T14-malformed-event.jsonl` | mỗi dòng ra đúng một record kèm `reason` khớp lỗi (chi tiết bên dưới); dòng trống và dòng `flow` bị bỏ qua; exit 0 |
+
+## Chi tiết T14: event lỗi
+
+| Dòng | Nội dung | `preprocess_status` | `reason` |
+|---|---|---|---|
+| 1 | `this is not json` | `invalid` | `missing_field:timestamp`, `unsupported_protocol:unknown`, `load/invalid_json` |
+| 2 | `timestamp` = `"yesterday"` | `invalid` | `invalid_timestamp`, `load/invalid_type` |
+| 3 | `src_port` = `"abc"` | `invalid` | `invalid_port:src_port`, `load/invalid_type` |
+| 4 | `dst_port` = 70000 | `invalid` | `invalid_port:dst_port` |
+| 5 | thiếu `src_ip` | `invalid` | `missing_field:src_ip` |
+| 6 | `schema_version` = 9 | `partial` | `load/unsupported_schema` |
+| 7 | `record_type` = `"bogus"` | `partial` | `load/unsupported_schema` |
+| 8 | dòng trống | bỏ qua | |
+| 9 | record `flow` | bỏ qua, warning `line 9: skipped record_type 'flow'` trong `summary.txt` | |
+| 10 | JSON bị cắt | `invalid` | như dòng 1 |
+| 11 | event hợp lệ | `valid` | |
+
+Dòng không phải JSON vẫn ra một record với `packet_id` = số dòng (tính cả dòng trống).
+Dòng 6 và 7 chỉ là `partial`: event vẫn nạp được đầy đủ, lỗi schema không rơi vào field
+bắt buộc. Record `invalid` có `flow` = `null`.
