@@ -4,7 +4,6 @@ import hashlib
 
 from .model.packet import Payload
 
-PREVIEW_LIMIT = 256
 HEX_LIMIT = 64
 
 _PRINTABLE = bytes(range(32, 127)) + b"\t\n\r"
@@ -54,22 +53,3 @@ def make_payload(data: bytes, *, max_bytes: int = 65535, preview_limit: int = 25
         binary=binary,
         preview_hex=data[:HEX_LIMIT].hex() if binary else None,
     )
-
-
-def describe(
-    data: bytes, limit: int = PREVIEW_LIMIT, hex_limit: int = HEX_LIMIT
-) -> dict[str, object]:
-    binary = looks_binary(data)
-    truncated = len(data) > limit
-    text, encoding = _render(data[:limit], binary, truncated)
-    summary: dict[str, object] = {
-        "length": len(data),
-        "sha256": sha256_hex(data),
-        "preview": text,
-        "preview_truncated": truncated,
-        "preview_encoding": encoding,
-        "binary": binary,
-    }
-    if binary:
-        summary["preview_hex"] = data[:hex_limit].hex()
-    return summary
