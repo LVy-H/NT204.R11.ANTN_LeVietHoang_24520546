@@ -658,3 +658,47 @@ def test_t14_blank_and_flow_lines_are_skipped_without_shifting_line_numbers(run_
     assert run.packet(10)["issues"][0]["code"] == "invalid_json"
     assert run.stats["packets_seen"] == 9
     assert run.stats["preprocess_status"] == {"invalid": 6, "partial": 2, "valid": 1}
+
+
+OUTCOME_KEYS = (
+    "packets_seen",
+    "records_written",
+    "dropped",
+    "skipped",
+    "event_types",
+    "preprocess_status",
+    "processing_action",
+    "flow_end_reasons",
+    "messages",
+    "active_flows",
+)
+
+
+def case_dir(fixture: Path) -> Path:
+    """Result directory TEST/run_cases.sh writes for `fixture`."""
+    name = fixture.stem
+    return fixture.parent.parent / (f"case-{name}" if name[0].isdigit() else name)
+
+
+def outcomes(stderr: str) -> dict[str, object]:
+    return {key: stats_of(stderr).get(key) for key in OUTCOME_KEYS}
+
+
+@pytest.mark.parametrize("fixture", ALL_FIXTURES, ids=str)
+def test_committed_case_outcomes_match_a_fresh_run(tmp_path, capsys, monkeypatch, fixture):
+    monkeypatch.chdir(ROOT)
+    committed = case_dir(fixture)
+    argv = [
+        source_flag(fixture),
+        str(fixture),
+        "--output",
+        str(tmp_path / "output.jsonl"),
+        "--flows-output",
+        str(tmp_path / "flows.jsonl"),
+        "--stats",
+    ]
+
+    assert main(argv) == 0
+    fresh = outcomes(capsys.readouterr().err)
+    stored = outcomes((committed / "summary.txt").read_text(encoding="utf-8"))
+    assert fresh == stored, f"{committed} is stale; re-run: sh TEST/run_cases.sh {fixture}"
