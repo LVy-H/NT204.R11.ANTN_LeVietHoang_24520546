@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import io
 import itertools
 import json
 from pathlib import Path
@@ -216,3 +217,82 @@ def test_cli_version(capsys):
         main(["--version"])
     assert caught.value.code == 0
     assert capsys.readouterr().out.strip() == f"ids {__version__}"
+
+
+def test_cli_events_round_trip_keeps_parser_fields(tmp_path):
+    first = tmp_path / "first.jsonl"
+    second = tmp_path / "second.jsonl"
+    assert main(["-r", HTTP_GET, "-o", str(first)]) == 0
+    assert main(["-e", str(first), "-o", str(second)]) == 0
+    keys = (
+        "packet_id",
+        "timestamp",
+        "capture",
+        "link",
+        "network",
+        "transport",
+        "application",
+        "payload",
+    )
+    expected = [{key: record[key] for key in keys} for record in packets(first)]
+    assert [{key: record[key] for key in keys} for record in packets(second)] == expected
+    assert len(expected) == 2
+
+
+def test_cli_reads_events_from_stdin(tmp_path, monkeypatch):
+    first = tmp_path / "first.jsonl"
+    assert main(["-r", HTTP_GET, "-o", str(first)]) == 0
+    monkeypatch.setattr("sys.stdin", io.TextIOWrapper(io.BytesIO(first.read_bytes())))
+    second = tmp_path / "second.jsonl"
+    assert main(["-e", "-", "-o", str(second)]) == 0
+    assert [record["packet_id"] for record in packets(second)] == [1, 2]
+
+
+def test_cli_events_with_nan_line_completes(tmp_path):
+    events = tmp_path / "events.jsonl"
+    events.write_text(
+        'not json\n{"packet_id": 2, "timestamp": NaN}\n{"packet_id": 3, "timestamp": 1.0}\n',
+        encoding="utf-8",
+    )
+    output = tmp_path / "out.jsonl"
+    assert main(["-e", str(events), "-o", str(output)]) == 0
+    written = packets(output)
+    assert [record["packet_id"] for record in written] == [1, 2, 3]
+    assert [[(i["stage"], i["code"]) for i in record["issues"]] for record in written] == [
+        [("load", "invalid_json")],
+        [("load", "invalid_json")],
+        [],
+    ]
+
+
+def test_cli_events_stats_report_skipped_records(tmp_path, capsys):
+    events = tmp_path / "events.jsonl"
+    events.write_text('{"packet_id": 1}\n{"record_type": "flow"}\n', encoding="utf-8")
+    output = tmp_path / "out.jsonl"
+    assert main(["-e", str(events), "-o", str(output), "--stats", "-q"]) == 0
+    err = capsys.readouterr().err
+    assert "warning: line 2: skipped record_type 'flow'\n" in err
+    summary = summary_of(err)
+    assert summary["packets_seen"] == 1
+    assert summary["source"]["source"] == "events"
+    assert summary["source"]["skipped_records"] == 1
+
+
+def test_cli_events_count_limit(tmp_path):
+    events = tmp_path / "events.jsonl"
+    events.write_text('{"packet_id": 1}\n{"packet_id": 2}\n{"packet_id": 3}\n', encoding="utf-8")
+    output = tmp_path / "out.jsonl"
+    assert main(["-e", str(events), "-c", "2", "-o", str(output)]) == 0
+    assert [record["packet_id"] for record in packets(output)] == [1, 2]
+
+
+def test_cli_reports_a_missing_events_file(capsys):
+    assert main(["--events", "/nonexistent/events.jsonl"]) == 1
+    assert "error:" in capsys.readouterr().err
+
+
+def test_cli_events_excludes_other_sources(capsys):
+    with pytest.raises(SystemExit) as caught:
+        main(["-e", "events.jsonl", "-r", HANDSHAKE])
+    assert caught.value.code == 2
+    assert "not allowed with argument" in capsys.readouterr().err

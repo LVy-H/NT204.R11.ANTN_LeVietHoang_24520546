@@ -7,7 +7,7 @@ import sys
 from collections.abc import Sequence
 
 from . import __version__
-from .capture import LiveSource, PcapSource, list_interfaces
+from .capture import EventsSource, LiveSource, PcapSource, list_interfaces
 from .issues import ParseError
 from .parsers import PacketParser, ParserConfig
 from .pipeline import UNKNOWN_POLICIES, Runner, Stage
@@ -62,6 +62,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     source.add_argument(
         "--pcap", "-r", metavar="FILE", help="read packets from a pcap or pcapng file"
+    )
+    source.add_argument(
+        "--events",
+        "-e",
+        metavar="FILE",
+        help="read schema v2 packet events from a JSON Lines file ('-' = stdin)",
     )
     source.add_argument(
         "--list-interfaces", "-L", action="store_true", help="list usable interfaces and exit"
@@ -148,7 +154,7 @@ def _print_interfaces() -> int:
     return EXIT_OK
 
 
-def _open_source(args: argparse.Namespace) -> PcapSource | LiveSource:
+def _open_source(args: argparse.Namespace) -> PcapSource | LiveSource | EventsSource:
     if args.interface is not None:
         return LiveSource(
             args.interface,
@@ -156,10 +162,14 @@ def _open_source(args: argparse.Namespace) -> PcapSource | LiveSource:
             count=args.count,
             capture_idle_timeout=args.capture_idle_timeout,
         )
+    if args.events is not None:
+        return EventsSource(args.events, count=args.count)
     return PcapSource(args.pcap, count=args.count)
 
 
-def _report(args: argparse.Namespace, source: PcapSource | LiveSource, stats: Stats) -> None:
+def _report(
+    args: argparse.Namespace, source: PcapSource | LiveSource | EventsSource, stats: Stats
+) -> None:
     warnings = source.warnings
     for warning in warnings[:WARNING_PREVIEW]:
         print(f"warning: {warning}", file=sys.stderr)

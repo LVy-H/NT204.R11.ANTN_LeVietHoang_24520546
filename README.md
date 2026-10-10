@@ -34,6 +34,7 @@ pip install -r requirements.txt  # hoặc pip, cần Python >= 3.10
 ```bash
 python main.py --interface eth0           # live capture
 python main.py --pcap test.pcap           # đọc file PCAP / PCAPNG
+python main.py --events events.jsonl      # đọc event JSONL schema v2 (- = stdin)
 python main.py --list-interfaces          # liệt kê interface
 ```
 
@@ -41,6 +42,7 @@ python main.py --list-interfaces          # liệt kê interface
 |---|---|
 | `--interface`, `-i` | Bắt live traffic từ interface |
 | `--pcap`, `-r` | Đọc từ file `.pcap` / `.pcapng` |
+| `--events`, `-e` | Đọc event JSONL schema v2 (`-` = stdin); bỏ qua dòng `flow` / `message` |
 | `--list-interfaces`, `-L` | Liệt kê interface rồi thoát |
 | `--output`, `-o` | File JSON Lines (mặc định `-` = stdout) |
 | `--count`, `-c` | Dừng sau N packet |
