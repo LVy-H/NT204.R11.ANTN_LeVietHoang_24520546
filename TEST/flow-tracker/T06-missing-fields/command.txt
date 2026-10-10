@@ -1,0 +1,1 @@
+.venv/bin/python main.py --events TEST/flow-tracker/fixtures/T06-missing-fields.jsonl --output TEST/flow-tracker/T06-missing-fields/output.jsonl --flows-output TEST/flow-tracker/T06-missing-fields/flows.jsonl --stats

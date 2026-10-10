@@ -304,6 +304,44 @@ def t05_normalize_events() -> list[str]:
     ]
 
 
+def t06_missing_fields() -> list[str]:
+    return [
+        event(
+            packet_id=1,
+            timestamp=1759000000.0,
+            src_ip=CLIENT,
+            dst_ip=SERVER,
+            protocol="TCP",
+            src_port=CLIENT_PORT,
+            dst_port=APP_PORT,
+        ),
+        event(
+            packet_id=2,
+            timestamp=1759000001.0,
+            network={
+                "protocol": "IPv4",
+                "src_ip": CLIENT,
+                "dst_ip": SERVER,
+                "protocol_name": "UDP",
+            },
+            transport={"protocol": "UDP", "src_port": 40000, "dst_port": 5000},
+        ),
+        event(
+            packet_id=3,
+            timestamp=1759000002.0,
+            src_ip=CLIENT,
+            dst_ip=SERVER,
+            protocol="TCP",
+            src_port=51240,
+            dst_port=HTTP_PORT,
+            application={
+                "protocol": "HTTP",
+                "message": {"protocol": "HTTP", "kind": "request", "method": "GET", "uri": "/"},
+            },
+        ),
+    ]
+
+
 CASES: dict[str, Callable[[], list[Frame]] | Callable[[], list[str]]] = {
     "T01-http-url-decode.pcap": t01_http_url_decode,
     "T02-html-entities.pcap": t02_html_entities,
@@ -311,6 +349,7 @@ CASES: dict[str, Callable[[], list[Frame]] | Callable[[], list[str]]] = {
     "T04-invalid-charset.pcap": t04_invalid_charset,
     "T05-normalize-pcap.pcap": t05_normalize_pcap,
     "T05-normalize-events.jsonl": t05_normalize_events,
+    "T06-missing-fields.jsonl": t06_missing_fields,
 }
 
 

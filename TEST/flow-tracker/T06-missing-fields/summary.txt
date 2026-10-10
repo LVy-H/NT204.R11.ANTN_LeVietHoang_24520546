@@ -1,0 +1,52 @@
+source: events TEST/flow-tracker/fixtures/T06-missing-fields.jsonl
+wrote 6 records from 3 packets (0 dropped, 0 skipped, 0 with issues)
+{
+  "packets_seen": 3,
+  "records_written": {
+    "packet": 3,
+    "message": 0,
+    "flow": 3
+  },
+  "dropped": 0,
+  "skipped": 0,
+  "packets_with_issues": 0,
+  "first_timestamp": 1759000000.0,
+  "last_timestamp": 1759000002.0,
+  "event_types": {
+    "tcp_segment": 1,
+    "udp_segment": 1,
+    "http_request": 1
+  },
+  "protocols": {
+    "TCP": 2,
+    "UDP": 1
+  },
+  "application_protocols": {
+    "UNKNOWN": 2,
+    "HTTP": 1
+  },
+  "detection_methods": {},
+  "issue_codes": {},
+  "preprocess_status": {
+    "valid": 3
+  },
+  "processing_action": {
+    "forward": 3
+  },
+  "flow_end_reasons": {
+    "end_of_input": 3
+  },
+  "messages": {
+    "complete": 0,
+    "incomplete": 0
+  },
+  "stage_errors": {},
+  "active_flows": 3,
+  "source": {
+    "source": "events",
+    "origin": "TEST/flow-tracker/fixtures/T06-missing-fields.jsonl",
+    "count_limit": null,
+    "events_loaded": 3,
+    "skipped_records": 0
+  }
+}

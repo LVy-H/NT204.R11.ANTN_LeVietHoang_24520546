@@ -5,12 +5,13 @@ import importlib.util
 import json
 import sys
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from pathlib import Path
 
 import pytest
 
 from ids.cli import main
+from ids.model import HttpMessage, Ipv4Info
 
 ROOT = Path(__file__).resolve().parents[1]
 FLOW_TRACKER = Path("TEST/flow-tracker")
@@ -56,6 +57,10 @@ BASE_TIME = 1759000000
 def at(offset_ms: int) -> float:
     """Timestamp the pcap reader yields for a fixture frame at `offset_ms`."""
     return (BASE_TIME + offset_ms // 1000) + (offset_ms % 1000) * 1000 / 1_000_000
+
+
+def json_keys(cls: type) -> list[str]:
+    return [f.metadata.get("json", f.name) for f in fields(cls)]
 
 
 @dataclass
@@ -385,3 +390,32 @@ def test_t05_every_spelling_normalizes_to_the_same_values(run_case):
         ("partial", ["timestamp_scaled"]),
         ("valid", []),
     ]
+
+
+def test_t06_events_missing_optional_fields_load_with_the_full_key_set(run_case):
+    run = run_case(FLOW_FIXTURES / "T06-missing-fields.jsonl")
+    flat, nested, http = run.packets
+
+    assert run.exit_code == 0
+    assert [p["packet_id"] for p in run.packets] == [1, 2, 3]
+    assert all(list(p) == PACKET_KEYS for p in run.packets)
+    assert [(p["preprocess_status"], p["reason"]) for p in run.packets] == [("valid", [])] * 3
+    assert all(p["issues"] == [] for p in run.packets)
+    assert all(p["link"] is None for p in run.packets)
+    assert all(p["flow"] is not None for p in run.packets)
+
+    assert flat["application"] is None
+    assert flat["application_protocol"] == "UNKNOWN"
+    assert list(flat["network"]) == json_keys(Ipv4Info)
+    assert flat["network"]["options"] == []
+    assert flat["protocol"] == "TCP"
+
+    assert list(nested["network"]) == json_keys(Ipv4Info)
+    assert nested["network"]["options"] == []
+    assert nested["protocol"] == "UDP"
+
+    message = http["application"]["message"]
+    assert list(message) == json_keys(HttpMessage)
+    assert message["headers"] == []
+    assert message["body"] is None
+    assert http["event_type"] == "http_request"

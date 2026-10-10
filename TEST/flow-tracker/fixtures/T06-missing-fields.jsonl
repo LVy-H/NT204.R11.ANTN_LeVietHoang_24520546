@@ -1,0 +1,3 @@
+{"packet_id":1,"timestamp":1759000000.0,"src_ip":"10.0.0.1","dst_ip":"10.0.0.2","protocol":"TCP","src_port":51234,"dst_port":9000}
+{"packet_id":2,"timestamp":1759000001.0,"network":{"protocol":"IPv4","src_ip":"10.0.0.1","dst_ip":"10.0.0.2","protocol_name":"UDP"},"transport":{"protocol":"UDP","src_port":40000,"dst_port":5000}}
+{"packet_id":3,"timestamp":1759000002.0,"src_ip":"10.0.0.1","dst_ip":"10.0.0.2","protocol":"TCP","src_port":51240,"dst_port":80,"application":{"protocol":"HTTP","message":{"protocol":"HTTP","kind":"request","method":"GET","uri":"/"}}}
