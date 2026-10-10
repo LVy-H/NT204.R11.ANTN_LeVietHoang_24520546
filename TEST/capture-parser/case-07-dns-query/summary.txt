@@ -1,19 +1,21 @@
-source: pcap TEST/fixtures/07-dns-query.pcap
-parsed 3 events from 3 packets (0 skipped, 0 with errors)
+source: pcap TEST/capture-parser/fixtures/07-dns-query.pcap
+wrote 4 records from 3 packets (0 dropped, 0 skipped, 0 with issues)
 {
   "packets_seen": 3,
-  "events_written": 3,
-  "events_skipped": 0,
-  "packets_with_errors": 0,
+  "records_written": {
+    "packet": 3,
+    "message": 0,
+    "flow": 1
+  },
+  "dropped": 0,
+  "skipped": 0,
+  "packets_with_issues": 0,
   "first_timestamp": 1759000000.1,
   "last_timestamp": 1759000002.115838,
   "event_types": {
     "dns_query": 3
   },
-  "network_protocols": {
-    "IPv4": 3
-  },
-  "transport_protocols": {
+  "protocols": {
     "UDP": 3
   },
   "application_protocols": {
@@ -22,10 +24,25 @@ parsed 3 events from 3 packets (0 skipped, 0 with errors)
   "detection_methods": {
     "port+payload": 3
   },
-  "error_codes": {},
+  "issue_codes": {},
+  "preprocess_status": {
+    "valid": 3
+  },
+  "processing_action": {
+    "forward": 3
+  },
+  "flow_end_reasons": {
+    "end_of_input": 1
+  },
+  "messages": {
+    "complete": 0,
+    "incomplete": 0
+  },
+  "stage_errors": {},
+  "active_flows": 1,
   "source": {
     "source": "pcap",
-    "origin": "TEST/fixtures/07-dns-query.pcap",
+    "origin": "TEST/capture-parser/fixtures/07-dns-query.pcap",
     "format": "pcap",
     "linktype": 1,
     "linktype_name": "EN10MB",
