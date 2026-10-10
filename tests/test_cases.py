@@ -446,3 +446,26 @@ def test_t07_three_way_handshake_establishes_one_flow(run_case):
     assert (flow["start_time"], flow["last_seen"], flow["duration"]) == (at(0), at(20), 0.02)
     assert (flow["first_packet_id"], flow["last_packet_id"]) == (1, 3)
     assert flow["end_reason"] == "end_of_input"
+
+
+def test_t08_both_directions_share_one_flow_id(run_case):
+    run = run_case(FLOW_FIXTURES / "T08-tcp-bidirectional.pcap")
+    (flow,) = run.flows
+
+    assert run.exit_code == 0
+    assert {p["flow"]["flow_id"] for p in run.packets} == {flow["flow_id"]}
+    expected = ["forward" if p["src_ip"] == "10.0.0.1" else "backward" for p in run.packets]
+    assert [p["flow"]["direction"] for p in run.packets] == expected
+    assert expected == [
+        "forward",
+        "backward",
+        "forward",
+        "forward",
+        "backward",
+        "backward",
+        "forward",
+    ]
+    assert flow["forward"] == {"packet_count": 4, "byte_count": 173, "payload_byte_count": 13}
+    assert flow["backward"] == {"packet_count": 3, "byte_count": 157, "payload_byte_count": 37}
+    assert (flow["packet_count"], flow["byte_count"], flow["payload_byte_count"]) == (7, 330, 50)
+    assert flow["tcp"]["state"] == "ESTABLISHED"
