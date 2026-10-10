@@ -362,8 +362,43 @@ def test_smtp_segment_starting_with_a_part_header_block_is_decoded():
     event = run(smtp_event(b"--b1\r\nContent-Type: text/plain\r\n\r\nhello\r\n--b1--\r\n"))
 
     assert isinstance(event.decoded, DecodedMime)
-    assert event.decoded.parts[0].content_type == "text/plain"
-    assert event.decoded.parts[0].text.startswith("hello")
+    assert [(part.content_type, part.text) for part in event.decoded.parts] == [
+        ("text/plain", "hello")
+    ]
+    assert event.decoded.status is DecodeStatus.UNCHANGED
+    assert event.issues == []
+
+
+def test_smtp_segment_starting_at_a_delimiter_decodes_a_base64_part():
+    event = run(
+        smtp_event(
+            b"--b1\r\nContent-Type: text/plain\r\nContent-Transfer-Encoding: base64\r\n\r\n"
+            b"aGVsbG8=\r\n--b1--\r\n.\r\n"
+        )
+    )
+
+    assert [(part.text, part.status) for part in event.decoded.parts] == [
+        ("hello", DecodeStatus.DECODED)
+    ]
+    assert event.decoded.status is DecodeStatus.DECODED
+    assert event.issues == []
+
+
+def test_smtp_segment_starting_at_a_delimiter_splits_every_part():
+    event = run(
+        smtp_event(
+            b"--b1\r\nContent-Type: text/plain\r\n\r\nfirst\r\n"
+            b"--b1\r\nContent-Type: text/plain\r\nContent-Transfer-Encoding: base64\r\n\r\n"
+            b"aGVsbG8=\r\n--b1--\r\n.\r\n"
+        )
+    )
+
+    assert [(part.text, part.status) for part in event.decoded.parts] == [
+        ("first", DecodeStatus.UNCHANGED),
+        ("hello", DecodeStatus.DECODED),
+    ]
+    assert event.decoded.status is DecodeStatus.DECODED
+    assert event.issues == []
 
 
 def test_smtp_payload_cut_by_payload_cap_is_partial():

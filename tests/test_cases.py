@@ -279,6 +279,10 @@ def test_t03_split_smtp_message_is_reassembled_and_mime_decoded(run_case, genera
     # emitted while the segment holding "\r\n.\r\n" is processed, before its packet record
     assert run.position(run.packet(13)) < run.position(first) < run.position(run.packet(14))
     assert run.stats["messages"] == {"complete": 2, "incomplete": 0}
+    # packet 14 starts at the "--b1" delimiter of the second part: decoded on its own too
+    continuation = run.packet(14)["decoded"]
+    assert continuation["parts"] == [{**T03_MULTIPART_PARTS[1], "index": 0}]
+    assert continuation["status"] == "decoded"
 
 
 def test_t03_single_segment_message_is_decoded_at_packet_level(run_case):

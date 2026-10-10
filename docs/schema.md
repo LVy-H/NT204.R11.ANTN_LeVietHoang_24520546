@@ -196,6 +196,9 @@ The deepest bytes reached (application payload for TCP/UDP).
 `{kind, headers, parts, status}`.
 
 - The final `.\r\n` of the terminator is removed and dot-stuffing is undone first.
+- A DATA packet that starts at a part delimiter `--X` (a later segment of a multipart
+  message) is read as `multipart/mixed; boundary="X"`, so its parts split and the close
+  delimiter is dropped; its `headers` are all `null`.
 - `headers`: `{subject, from, to, cc, date, message_id}`, RFC 2047 words decoded, `null`
   when absent.
 - `parts`: leaf parts only, in tree order: `{index (0-based), content_type (lower case,

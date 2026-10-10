@@ -31,7 +31,7 @@ TEXT_TYPES = frozenset({FORM_TYPE, "application/json", "application/xml", "appli
 _CHARSET = re.compile(r';\s*charset\s*=\s*"?([^";\s]+)', re.IGNORECASE)
 _INVALID_ESCAPE = re.compile(r"%(?![0-9A-Fa-f]{2})")
 _INVALID_ESCAPE_BYTES = re.compile(rb"%(?![0-9A-Fa-f]{2})")
-_LEADING_BOUNDARY = re.compile(rb"\A--[^\r\n]*\r?\n")
+_LEADING_DELIMITER = re.compile(rb"\A--([^\r\n]*)\r?\n")
 
 
 @dataclass(slots=True)
@@ -67,6 +67,20 @@ def _report_escapes(
         )
 
 
+def _continue_multipart(data: bytes) -> bytes:
+    """A segment may start mid-message at a part delimiter `--X`: give it a synthetic
+    `multipart/mixed; boundary="X"` header so its parts split and the close delimiter goes."""
+    match = _LEADING_DELIMITER.match(data)
+    if match is None:
+        return data
+    boundary = match.group(1).rstrip(b" \t")
+    if not boundary or boundary.endswith(b"--"):
+        # a close delimiter (or a bare `--`): what follows is not a part of this multipart
+        return data[match.end() :]
+    quoted = boundary.replace(b"\\", b"\\\\").replace(b'"', b'\\"')
+    return b'Content-Type: multipart/mixed; boundary="' + quoted + b'"\r\n\r\n' + data
+
+
 class DecoderStage:
     name = "decoder"
 
@@ -85,8 +99,7 @@ class DecoderStage:
         elif isinstance(message, SmtpSession):
             data = record.payload.data if record.payload is not None else None
             if data:
-                # a segment may start mid-message at a part delimiter; parse the part's own headers
-                data = _LEADING_BOUNDARY.sub(b"", data, count=1)
+                data = _continue_multipart(data)
             if data and has_mime_headers(data):
                 decoded = decode_message(data, issues, max_bytes=limit)
                 if record.payload.data_truncated:
