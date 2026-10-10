@@ -203,16 +203,20 @@ def test_pcapng_bad_block_length_warns(tmp_path):
     assert any("invalid pcapng block length" in warning for warning in source.warnings)
 
 
-def test_pcapng_short_interface_block_warns_instead_of_crashing(tmp_path):
+def test_pcapng_short_interface_block_keeps_interface_numbering(tmp_path):
     raw = (
         section_header()
         + block(1, b"\x01\x00\x00\x00")
         + interface_description()
-        + enhanced_packet(FRAME_A, TS * 1_000_000)
+        + enhanced_packet(FRAME_A, TS * 1_000_000, iface=1)
+        + enhanced_packet(FRAME_B, TS * 1_000_000, iface=0)
     )
     source = PcapSource(write(tmp_path, raw, "capture.pcapng"))
     packets = list(source.items())
-    assert source.warnings == ["truncated pcapng interface description block"]
+    assert source.warnings == [
+        "truncated pcapng interface description block",
+        "pcapng packet references unusable interface 0",
+    ]
     assert [packet.data for packet in packets] == [FRAME_A]
 
 

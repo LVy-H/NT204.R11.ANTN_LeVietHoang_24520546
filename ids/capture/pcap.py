@@ -153,7 +153,7 @@ class PcapSource:
     def _pcapng(self, handle: BinaryIO, first_block_type: bytes) -> Iterator[_Record]:
         self.format = "pcapng"
         endian = "<"
-        interfaces: list[_Interface] = []
+        interfaces: list[_Interface | None] = []
         pending: bytes | None = first_block_type
         while True:
             if pending is not None:
@@ -203,10 +203,12 @@ class PcapSource:
             if block_type == NG_IDB:
                 if len(body) < NG_IDB_MIN_BODY:
                     self.warnings.append("truncated pcapng interface description block")
+                    interfaces.append(None)
                     continue
-                interfaces.append(_interface(body, endian))
+                interface = _interface(body, endian)
+                interfaces.append(interface)
                 if self.linktype is None:
-                    self.linktype = interfaces[-1].linktype
+                    self.linktype = interface.linktype
             elif block_type == NG_EPB:
                 record = self._enhanced(body, endian, interfaces)
                 if record is not None:
@@ -216,7 +218,9 @@ class PcapSource:
                 if record is not None:
                     yield record
 
-    def _enhanced(self, body: bytes, endian: str, interfaces: list[_Interface]) -> _Record | None:
+    def _enhanced(
+        self, body: bytes, endian: str, interfaces: list[_Interface | None]
+    ) -> _Record | None:
         if len(body) < 20:
             self.warnings.append("truncated pcapng enhanced packet block")
             return None
@@ -225,17 +229,22 @@ class PcapSource:
             self.warnings.append(f"pcapng packet references undefined interface {iface_id}")
             return None
         interface = interfaces[iface_id]
+        if interface is None:
+            self.warnings.append(f"pcapng packet references unusable interface {iface_id}")
+            return None
         data = body[20 : 20 + cap_len]
         if len(data) < cap_len:
             self.warnings.append(f"pcapng packet declares {cap_len} bytes, {len(data)} present")
         timestamp = ((ts_high << 32) | ts_low) / interface.divisor
         return _Record(timestamp, interface.linktype, data, orig_len, cap_len)
 
-    def _simple(self, body: bytes, endian: str, interfaces: list[_Interface]) -> _Record | None:
-        if len(body) < 4 or not interfaces:
+    def _simple(
+        self, body: bytes, endian: str, interfaces: list[_Interface | None]
+    ) -> _Record | None:
+        interface = interfaces[0] if interfaces else None
+        if len(body) < 4 or interface is None:
             self.warnings.append("pcapng simple packet block without a usable interface")
             return None
-        interface = interfaces[0]
         orig_len = struct.unpack_from(endian + "I", body, 0)[0]
         captured = min(orig_len, interface.snaplen, len(body) - 4)
         return _Record(0.0, interface.linktype, body[4 : 4 + captured], orig_len, captured)
