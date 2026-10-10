@@ -4,8 +4,10 @@ import hashlib
 import json
 import random
 
+import pytest
+
 from ids.codec import to_jsonable
-from ids.decoder.mime import decode_message
+from ids.decoder.mime import decode_message, has_mime_headers
 from ids.issues import Issues
 from ids.model import DecodeStatus
 
@@ -48,6 +50,21 @@ def single(encoding: str | None, body: bytes, content_type: bytes = b"text/plain
     if encoding is not None:
         header += b"Content-Transfer-Encoding: " + encoding.encode() + b"\r\n"
     return header + b"\r\n" + body
+
+
+@pytest.mark.parametrize(
+    ("data", "expected"),
+    [
+        (b"Subject: x\n\nplain body text\r\nContent-Type: text/html\r\n\r\nmore", False),
+        (b"Subject: x\r\n\r\nplain body text\r\nContent-Type: text/html\r\n\r\nmore", False),
+        (b"Subject: x\r\n\nplain body text\r\nContent-Type: text/html\r\n\r\nmore", False),
+        (b"\r\nContent-Type: text/html\r\n\r\nmore", False),
+        (b"Subject: x\nContent-Type: text/html\n\nbody\r\n\r\nmore", True),
+        (b"Subject: x\r\nMIME-Version: 1.0\r\n", True),
+    ],
+)
+def test_mime_header_area_ends_at_the_first_blank_line(data, expected):
+    assert has_mime_headers(data) is expected
 
 
 def test_multipart_base64_and_quoted_printable_parts_are_decoded():

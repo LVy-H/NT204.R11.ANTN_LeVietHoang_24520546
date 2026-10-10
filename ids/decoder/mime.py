@@ -39,6 +39,7 @@ _MIME_HEADER = re.compile(
     re.IGNORECASE | re.MULTILINE,
 )
 _DOT_STUFFED = re.compile(rb"^\.\.", re.MULTILINE)
+_BLANK_LINE = re.compile(rb"(?:\A|\n)\r?\n")  # first empty line, LF or CRLF
 _FOLD = re.compile(r"\r?\n(?=[ \t])")
 _B64_WHITESPACE = b" \t\r\n\x0b\x0c"
 _B64_OUTSIDE_ALPHABET = re.compile(rb"[^A-Za-z0-9+/=]")
@@ -50,10 +51,8 @@ MAX_HEADER_CHARS = 8192
 
 def has_mime_headers(data: bytes) -> bool:
     """True when the header area (up to the first blank line) has a MIME header line."""
-    end = data.find(b"\r\n\r\n")
-    if end < 0:
-        end = data.find(b"\n\n")
-    return _MIME_HEADER.search(data, 0, end if end >= 0 else len(data)) is not None
+    blank = _BLANK_LINE.search(data)
+    return _MIME_HEADER.search(data, 0, blank.start() if blank else len(data)) is not None
 
 
 def unstuff(data: bytes) -> bytes:
