@@ -1,0 +1,1 @@
+.venv/bin/python main.py --pcap TEST/flow-tracker/fixtures/T04-invalid-charset.pcap --output TEST/flow-tracker/T04-invalid-charset/output.jsonl --flows-output TEST/flow-tracker/T04-invalid-charset/flows.jsonl --stats

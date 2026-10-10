@@ -289,3 +289,32 @@ def test_t03_single_segment_message_is_decoded_at_packet_level(run_case):
     assert packet["preprocess_status"] == "valid"
     assert second["packet_ids"] == [18]
     assert second["decoded"]["parts"] == [T03_SINGLE_PART]
+
+
+def test_t04_invalid_utf8_body_is_partial_and_the_next_packet_is_clean(run_case):
+    run = run_case(FLOW_FIXTURES / "T04-invalid-charset.pcap")
+    broken, valid = run.packets
+
+    assert run.exit_code == 0
+    body = broken["decoded"]["body"]
+    assert body["text"] == "ok \ufffd\ufffd bad \ufffd"
+    assert body["charset"] == "utf-8"
+    assert body["status"] == "partial"
+    assert body["invalid_byte_count"] == 4
+    assert body["first_invalid_offset"] == 3
+    assert [(i["stage"], i["code"], i["context"]) for i in broken["issues"]] == [
+        (
+            "decoder",
+            "invalid_charset_bytes",
+            {"field": "body", "invalid_byte_count": 4, "first_invalid_offset": 3},
+        )
+    ]
+    assert broken["preprocess_status"] == "partial"
+    assert broken["processing_action"] == "mark"
+    assert broken["reason"] == ["decoder/invalid_charset_bytes", "decode_partial:body"]
+
+    assert valid["decoded"]["body"]["text"] == "chào"
+    assert valid["decoded"]["body"]["status"] == "decoded"
+    assert valid["issues"] == []
+    assert valid["preprocess_status"] == "valid"
+    assert valid["processing_action"] == "forward"

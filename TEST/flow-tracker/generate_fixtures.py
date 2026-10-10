@@ -191,10 +191,18 @@ def t03_smtp_mime() -> list[Frame]:
     ]
 
 
+def t04_invalid_charset() -> list[Frame]:
+    conn = TcpConversation(server_port=HTTP_PORT)
+    broken = http_response(b"ok \xff\xfe bad \xe2\x82", "text/plain; charset=utf-8")
+    valid = http_response("chào".encode(), "text/plain; charset=utf-8")
+    return [conn.server(0, "PA", broken), conn.server(10, "PA", valid)]
+
+
 CASES: dict[str, Callable[[], list[Frame]] | Callable[[], list[str]]] = {
     "T01-http-url-decode.pcap": t01_http_url_decode,
     "T02-html-entities.pcap": t02_html_entities,
     "T03-smtp-mime.pcap": t03_smtp_mime,
+    "T04-invalid-charset.pcap": t04_invalid_charset,
 }
 
 
