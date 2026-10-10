@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable, Sequence
 from typing import Protocol
 
-from .issues import Issue
+from .issues import internal_error
 from .model import (
     UNKNOWN,
     FlowRecord,
@@ -33,11 +33,6 @@ class Stage(Protocol):
 
 class Sink(Protocol):
     def write(self, record: PacketEvent | MessageEvent | FlowRecord) -> None: ...
-
-
-def _internal_error(stage: str, error: Exception) -> Issue:
-    name = type(error).__name__
-    return Issue(stage, "internal_error", str(error) or name, {"exception": name})
 
 
 class Runner:
@@ -83,7 +78,7 @@ class Runner:
             try:
                 stage.process(record, emitted.append)
             except Exception as error:
-                record.issues.append(_internal_error(stage.name, error))
+                record.issues.append(internal_error(stage.name, error))
             self._dispatch(emitted)
         if record.processing_action is ProcessingAction.DROP:
             self.stats.dropped(record)

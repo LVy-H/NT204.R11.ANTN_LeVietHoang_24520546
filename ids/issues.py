@@ -34,6 +34,11 @@ class ParseError(Exception):
         self.context = context
 
 
+def internal_error(stage: str, error: BaseException) -> Issue:
+    name = type(error).__name__
+    return Issue(stage, "internal_error", str(error) or name, {"exception": name})
+
+
 class Issues:
     """Collector bound to one stage; `scoped()` shares the same record list."""
 
@@ -55,14 +60,7 @@ class Issues:
                 Issue(self.stage, error.code, error.message, jsonable(error.context))
             )
         else:
-            self.records.append(
-                Issue(
-                    self.stage,
-                    "internal_error",
-                    str(error) or type(error).__name__,
-                    {"exception": type(error).__name__},
-                )
-            )
+            self.records.append(internal_error(self.stage, error))
 
     def __bool__(self) -> bool:
         return bool(self.records)
