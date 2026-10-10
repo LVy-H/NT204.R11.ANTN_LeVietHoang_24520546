@@ -463,3 +463,44 @@ def test_lone_surrogates_are_rejected_so_the_event_stays_utf8_writable():
     assert event.normalized.http.headers == {"host": ["a"]}
     assert invalid_fields(issues) == ["network.src_ip", "normalized.http.headers", "reason[1]"]
     encode_line(event).encode("utf-8")
+
+
+def nested_lists(depth: int) -> list:
+    # Built iteratively: json.loads of ~1000 levels already overflows on CPython 3.10.
+    value: list = []
+    for _ in range(depth - 1):
+        value = [value]
+    return value
+
+
+@pytest.mark.parametrize(
+    ("record", "context"),
+    [
+        ({"record_type": nested_lists(1500)}, {"record_type": "list"}),
+        ({"record_type": "\ud800"}, {"record_type": "str"}),
+        ({"schema_version": {"v": 2}}, {"schema_version": "dict"}),
+    ],
+    ids=["deep-record-type", "surrogate-record-type", "object-schema-version"],
+)
+def test_hostile_header_values_are_echoed_by_type_name(record, context):
+    event, issues = decode_packet(record)
+    assert [(i.code, i.context) for i in issues] == [("unsupported_schema", context)]
+    event.issues = event.issues + issues
+    encode_line(event).encode("utf-8")
+
+
+def test_object_values_nested_too_deep_are_invalid_and_the_event_re_encodes():
+    record = {"issues": [{"stage": "parse", "context": {"a": nested_lists(1500)}}]}
+    event, issues = decode_packet(record)
+    assert invalid_fields(issues) == ["issues[0].context.a"]
+    assert event.issues[0].context == {}
+    encode_line(event).encode("utf-8")
+
+
+@pytest.mark.parametrize(("depth", "loads"), [(64, True), (65, False)])
+def test_object_value_depth_limit_is_64_levels(depth, loads):
+    issues = Issues("load")
+    value = nested_lists(depth)
+    record = from_jsonable(DnsRecord, {"value": value}, issues, "")
+    assert (record.value == value) is loads
+    assert invalid_fields(issues.records) == ([] if loads else ["value"])

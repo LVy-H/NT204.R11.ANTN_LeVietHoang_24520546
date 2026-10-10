@@ -18,6 +18,7 @@ from .model.flow import FlowRecord
 from .model.packet import Ipv4Info, TcpInfo, UdpInfo
 
 SCHEMA_VERSION = 2
+MAX_JSON_DEPTH = 64
 
 T = TypeVar("T")
 Loader = Callable[[object, Issues, str], object]
@@ -136,23 +137,36 @@ def decode_packet(obj: object) -> tuple[PacketEvent, list[Issue]]:
     if "schema_version" in obj:
         version = obj["schema_version"]
         if type(version) is not int or version != SCHEMA_VERSION:
+            echoed = _echo(version)
             issues.add(
                 "unsupported_schema",
-                f"schema_version {version!r} is not supported",
-                schema_version=version,
+                f"schema_version {echoed!r} is not supported",
+                schema_version=echoed,
             )
     if "record_type" in obj:
         record_type = obj["record_type"]
         if record_type != PacketEvent.RECORD_TYPE:
+            echoed = _echo(record_type)
             issues.add(
                 "unsupported_schema",
-                f"record_type {record_type!r} is not a packet record",
-                record_type=record_type,
+                f"record_type {echoed!r} is not a packet record",
+                record_type=echoed,
             )
     event = _load_object(PacketEvent, obj, issues, "")
     if obj.get("network") is None or obj.get("transport") is None:
         _flat_fallback(event, obj, issues)
     return event, issues.records
+
+
+def _echo(value: object) -> object:
+    kind = type(value)
+    if value is None or kind is bool or kind is int:
+        return value
+    if kind is float and math.isfinite(value):
+        return value
+    if kind is str and _utf8(value):
+        return value
+    return kind.__name__
 
 
 def _flat_fallback(event: PacketEvent, obj: dict[str, object], issues: Issues) -> None:
@@ -270,9 +284,9 @@ def _load_any(value: object, issues: Issues, path: str) -> object:
 
 
 def _is_json(value: object) -> bool:
-    stack = [value]
+    stack = [(value, 1)]
     while stack:
-        item = stack.pop()
+        item, depth = stack.pop()
         kind = type(item)
         if kind is float:
             if not math.isfinite(item):
@@ -280,13 +294,16 @@ def _is_json(value: object) -> bool:
         elif kind is str:
             if not _utf8(item):
                 return False
-        elif kind is list:
-            stack.extend(item)
-        elif kind is dict:
-            for key, child in item.items():
-                if type(key) is not str or not _utf8(key):
-                    return False
-                stack.append(child)
+        elif kind is list or kind is dict:
+            if depth > MAX_JSON_DEPTH:
+                return False
+            if kind is list:
+                stack.extend((child, depth + 1) for child in item)
+            else:
+                for key, child in item.items():
+                    if type(key) is not str or not _utf8(key):
+                        return False
+                    stack.append((child, depth + 1))
         elif not (item is None or kind is int or kind is bool):
             return False
     return True
