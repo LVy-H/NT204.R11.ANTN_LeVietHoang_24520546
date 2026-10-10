@@ -74,7 +74,7 @@ Warning được ghi trong `summary.txt`.
 
 ## Ghi chú
 
-- Fixture sinh bằng Scapy, còn `pcparser` đọc và parse bằng code tự viết, nên output
+- Fixture sinh bằng Scapy, còn `ids` đọc và parse bằng code tự viết, nên output
   là kiểm chứng độc lập.
 - Timestamp trong fixture là cố định (`1759000000`) để kết quả tái lập được.
 - Case 12 chỉ lưu 14/15 record, lý do nêu ở bảng trên.

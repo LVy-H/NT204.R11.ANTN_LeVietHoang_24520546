@@ -8,8 +8,8 @@ from golden import (
     SMTP_REJECT,
 )
 
-from pcparser.errors import DecodeError
-from pcparser.parsers.smtp import first_line, parse
+from ids.errors import DecodeError
+from ids.parsers.smtp import first_line, parse
 
 
 def test_ehlo_command():

@@ -19,7 +19,7 @@ WARNING_PREVIEW = 3
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="pcparser",
+        prog="ids",
         description="Packet Capture & Parser module for the IDS project",
     )
     source = parser.add_mutually_exclusive_group(required=True)

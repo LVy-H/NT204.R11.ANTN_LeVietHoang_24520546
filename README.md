@@ -52,7 +52,7 @@ python main.py --list-interfaces          # liệt kê interface
 | `--quiet`, `-q` | Tắt thông báo tiến độ |
 
 Live capture cần `CAP_NET_RAW` (chạy bằng `sudo` hoặc `setcap`). Sau `uv sync` có thể
-gọi `python main.py ...` hoặc console script `pcparser`.
+gọi `python main.py ...` hoặc console script `ids`.
 
 ## Output
 
@@ -75,7 +75,7 @@ Ví dụ output: `TEST/case-04-http-get/output.jsonl`, `TEST/case-12-malformed/o
 
 ```
 main.py              entrypoint
-pcparser/
+ids/
   capture/           live capture và reader pcap / pcapng
   parsers/           link, IPv4, TCP / UDP, HTTP, DNS, SMTP, detector
   pipeline.py        ghép các tầng thành một pipeline xử lý packet

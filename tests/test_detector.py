@@ -9,7 +9,7 @@ from golden import (
     SMTP_MAIL_FROM,
 )
 
-from pcparser.parsers.detector import STANDARD_PORTS, detect
+from ids.parsers.detector import STANDARD_PORTS, detect
 
 NOISE = bytes(range(256))
 TLS_CLIENT_HELLO = b"\x16\x03\x01\x00\x2c\x01\x00\x00\x28\x03\x03" + bytes(range(32))

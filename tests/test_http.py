@@ -1,8 +1,8 @@
 import pytest
 from golden import HTTP_GET, HTTP_POST, HTTP_RESPONSE
 
-from pcparser.errors import DecodeError
-from pcparser.parsers.http import first_line, parse
+from ids.errors import DecodeError
+from ids.parsers.http import first_line, parse
 
 
 def test_get_request_fields():

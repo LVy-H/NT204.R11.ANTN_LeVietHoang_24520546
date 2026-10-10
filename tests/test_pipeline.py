@@ -4,9 +4,9 @@ from pathlib import Path
 
 import pytest
 
-from pcparser.capture import PcapFileCapture
-from pcparser.capture.base import RawPacket
-from pcparser.pipeline import UNKNOWN_POLICIES, Pipeline
+from ids.capture import PcapFileCapture
+from ids.capture.base import RawPacket
+from ids.pipeline import UNKNOWN_POLICIES, Pipeline
 
 FIXTURES = Path(__file__).resolve().parents[1] / "TEST" / "fixtures"
 
@@ -232,7 +232,7 @@ def test_parser_crash_is_contained_in_one_event(monkeypatch):
     def boom(*args, **kwargs):
         raise RuntimeError("parser bug")
 
-    monkeypatch.setattr("pcparser.pipeline.parse_link", boom)
+    monkeypatch.setattr("ids.pipeline.parse_link", boom)
     event = Pipeline().process(RawPacket(1, 0.0, b"\x00" * 60, 1, "pcap", "fuzz", 60, 60))
     assert event["errors"] == [
         {
@@ -250,7 +250,7 @@ def test_build_failure_falls_back_to_a_minimal_event(monkeypatch):
     def boom(*args, **kwargs):
         raise RuntimeError("build bug")
 
-    monkeypatch.setattr("pcparser.pipeline.Pipeline._build", boom)
+    monkeypatch.setattr("ids.pipeline.Pipeline._build", boom)
     event = Pipeline().process(RawPacket(9, 12.5, b"\x00" * 60, 1, "pcap", "fuzz", 60, 60))
     assert event["packet_id"] == 9
     assert event["timestamp"] == 12.5

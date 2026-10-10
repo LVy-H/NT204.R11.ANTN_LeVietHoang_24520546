@@ -1,10 +1,10 @@
 import pytest
 from golden import TCP_DATA, TCP_FIN, TCP_SYN_OPTIONS, UDP
 
-from pcparser.errors import MalformedHeaderError, TruncatedPacketError, UnsupportedProtocolError
-from pcparser.parsers.link import parse_link
-from pcparser.parsers.network import parse_ipv4
-from pcparser.parsers.transport import parse_transport
+from ids.errors import MalformedHeaderError, TruncatedPacketError, UnsupportedProtocolError
+from ids.parsers.link import parse_link
+from ids.parsers.network import parse_ipv4
+from ids.parsers.transport import parse_transport
 
 
 def transport(frame, **overrides):

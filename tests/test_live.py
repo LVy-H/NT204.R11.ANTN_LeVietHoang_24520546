@@ -3,8 +3,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from pcparser.capture import live
-from pcparser.capture.live import PERMISSION_HINT, LiveCapture, list_interfaces
+from ids.capture import live
+from ids.capture.live import PERMISSION_HINT, LiveCapture, list_interfaces
 
 FRAME_A = bytes.fromhex("0200000000020200000000010800") + b"\x45" + b"\x00" * 41
 FRAME_B = bytes.fromhex("0200000000020200000000010800") + b"\x45" + b"\x01" * 41

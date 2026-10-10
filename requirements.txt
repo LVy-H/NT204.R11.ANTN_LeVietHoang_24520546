@@ -2,4 +2,4 @@
 #    uv export --no-hashes --no-dev --output-file requirements.txt
 -e .
 scapy==2.7.0
-    # via pcparser
+    # via ids

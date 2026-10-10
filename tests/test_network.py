@@ -1,8 +1,8 @@
 import pytest
 from golden import DST, ICMP, IPV4_MF, IPV4_OPTIONS, IPV6, SRC, TCP_DATA, TCP_SYN_OPTIONS, UDP
 
-from pcparser.errors import MalformedHeaderError, TruncatedPacketError, UnsupportedProtocolError
-from pcparser.parsers.network import parse_ipv4
+from ids.errors import MalformedHeaderError, TruncatedPacketError, UnsupportedProtocolError
+from ids.parsers.network import parse_ipv4
 
 
 def ipv4_bytes(frame):

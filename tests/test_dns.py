@@ -3,8 +3,8 @@ import struct
 import pytest
 from golden import DNS_ANSWER, DNS_POINTER_LOOP, DNS_QUERY, dns_name
 
-from pcparser.errors import DecodeError, TruncatedPacketError
-from pcparser.parsers.dns import parse, read_name
+from ids.errors import DecodeError, TruncatedPacketError
+from ids.parsers.dns import parse, read_name
 
 
 def record_bytes(name, rtype, rdata, ttl=60, rclass=1):

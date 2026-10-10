@@ -2,9 +2,9 @@ import struct
 
 import pytest
 
-from pcparser.capture.base import RawPacket, linktype_name
-from pcparser.capture.pcap import PcapFileCapture
-from pcparser.errors import MalformedHeaderError
+from ids.capture.base import RawPacket, linktype_name
+from ids.capture.pcap import PcapFileCapture
+from ids.errors import MalformedHeaderError
 
 TS = 1759000000
 FRAME_A = bytes.fromhex("0200000000020200000000010800") + bytes.fromhex(

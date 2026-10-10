@@ -1,9 +1,9 @@
 import pytest
 from golden import ICMP, IPV6, SERVER_MAC, TCP_SYN_OPTIONS, UDP, VLAN
 
-from pcparser.capture.base import DLT_EN10MB, DLT_LINUX_SLL, DLT_LINUX_SLL2, DLT_NULL, DLT_RAW
-from pcparser.errors import TruncatedPacketError, UnsupportedProtocolError
-from pcparser.parsers.link import parse_link
+from ids.capture.base import DLT_EN10MB, DLT_LINUX_SLL, DLT_LINUX_SLL2, DLT_NULL, DLT_RAW
+from ids.errors import TruncatedPacketError, UnsupportedProtocolError
+from ids.parsers.link import parse_link
 
 
 def test_ethernet_fields_and_payload():
@@ -90,7 +90,7 @@ def test_raw_link_sniffs_ip_version():
 
 
 def test_raw_link_rejects_garbage():
-    from pcparser.errors import MalformedHeaderError
+    from ids.errors import MalformedHeaderError
 
     with pytest.raises(MalformedHeaderError):
         parse_link(b"\x00\x01\x02\x03", DLT_RAW)

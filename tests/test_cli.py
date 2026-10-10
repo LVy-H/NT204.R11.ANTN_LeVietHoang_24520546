@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from pcparser.cli import main
+from ids.cli import main
 
 FIXTURES = Path(__file__).resolve().parents[1] / "TEST" / "fixtures"
 HANDSHAKE = str(FIXTURES / "01-tcp-handshake.pcap")
@@ -94,7 +94,7 @@ def test_cli_version(capsys):
     with pytest.raises(SystemExit) as caught:
         main(["--version"])
     assert caught.value.code == 0
-    assert capsys.readouterr().out.strip() == "pcparser 0.1.0"
+    assert capsys.readouterr().out.strip() == "ids 0.2.0"
 
 
 def test_cli_malformed_fixture_exits_cleanly(tmp_path, capsys):
