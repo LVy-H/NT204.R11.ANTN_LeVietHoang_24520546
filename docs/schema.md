@@ -308,7 +308,7 @@ Listed in this order, duplicates dropped:
 
 | Reason | Status | When |
 |---|---|---|
-| `missing_field:<name>` | invalid | `packet_id`, `timestamp`, `src_ip`, `dst_ip`, `src_port`, `dst_port` absent |
+| `missing_field:<name>` | invalid | `packet_id`, `timestamp`, `src_ip`, `dst_ip`, `src_port`, `dst_port` absent; also the IPs when the link layer announces IPv4 but no IPv4 header was parsed, and the ports when IPv4 announces TCP/UDP but no transport header was parsed |
 | `invalid_field:packet_id` | invalid | Not an int ≥ 1 |
 | `invalid_timestamp` | invalid | Not finite, ≤ 0, or later than now + 86400 s |
 | `invalid_ip:src_ip`, `invalid_ip:dst_ip` | invalid | Not a valid IPv4 address after normalization |

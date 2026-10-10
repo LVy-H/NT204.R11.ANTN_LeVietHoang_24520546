@@ -18,9 +18,11 @@ from ids.model import (
     LinkInfo,
     PacketEvent,
     PreprocessStatus,
+    RawPacket,
     TcpInfo,
     UdpInfo,
 )
+from ids.parsers import PacketParser
 from ids.preprocess.normalize import normalize
 from ids.preprocess.validate import validate
 
@@ -217,6 +219,25 @@ def test_ipv4_tcp_or_udp_without_a_parsed_transport_header_is_invalid_not_unsupp
     assert check(broken) == (
         INVALID,
         ["missing_field:src_port", "missing_field:dst_port", "transport/truncated_packet"],
+        False,
+    )
+
+
+@pytest.mark.parametrize(
+    ("header", "issue"),
+    [
+        (b"\x45\x00\x00\x14" + bytes(6), "network/truncated_packet"),
+        (b"\x42" + bytes(19), "network/malformed_header"),
+        (b"\x65" + bytes(19), "network/unsupported_protocol"),
+    ],
+)
+def test_broken_ipv4_header_is_invalid_not_unsupported(header, issue):
+    frame = bytes(12) + b"\x08\x00" + header
+    broken = PacketParser().parse(RawPacket(1, 1759000000.0, frame, 1, "pcap", "test"))
+    assert (broken.link.ethertype_name, broken.network) == ("IPv4", None)
+    assert check(broken) == (
+        INVALID,
+        ["missing_field:src_ip", "missing_field:dst_ip", issue],
         False,
     )
 

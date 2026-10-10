@@ -119,12 +119,16 @@ def _check_layers(
 ) -> None:
     network = event.network
     transport = event.transport
-    if network is not None or transport is not None or failed & IP_FIELDS:
+    # IPv4 announced by the link layer but no IPv4 header parsed: broken, not unsupported
+    broken_ipv4 = network is None and event.link is not None and event.link.ethertype_name == "IPv4"
+    if network is not None or transport is not None or failed & IP_FIELDS or broken_ipv4:
         _check_ip("src_ip", event.src_ip, normalized.src_ip, failed, verdict)
         _check_ip("dst_ip", event.dst_ip, normalized.dst_ip, failed, verdict)
     if transport is not None:
         _check_port("src_port", transport.src_port, failed, verdict)
         _check_port("dst_port", transport.dst_port, failed, verdict)
+        return
+    if broken_ipv4:
         return
     if failed & PORT_FIELDS or (
         network is not None
