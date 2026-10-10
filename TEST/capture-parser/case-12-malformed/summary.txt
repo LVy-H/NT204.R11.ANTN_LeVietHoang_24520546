@@ -1,12 +1,17 @@
-source: pcap TEST/fixtures/12-malformed.pcap
+source: pcap TEST/capture-parser/fixtures/12-malformed.pcap
 warning: record 1759000013.202947 declares 200 captured bytes, 40 present
 warning: stopping at the truncated record, the file position is unreliable
-parsed 14 events from 14 packets (0 skipped, 14 with errors)
+wrote 17 records from 14 packets (0 dropped, 0 skipped, 14 with issues)
 {
   "packets_seen": 14,
-  "events_written": 14,
-  "events_skipped": 0,
-  "packets_with_errors": 14,
+  "records_written": {
+    "packet": 14,
+    "message": 0,
+    "flow": 3
+  },
+  "dropped": 0,
+  "skipped": 0,
+  "packets_with_issues": 14,
   "first_timestamp": 1759000000.1,
   "last_timestamp": 1759000013.202947,
   "event_types": {
@@ -17,11 +22,7 @@ parsed 14 events from 14 packets (0 skipped, 14 with errors)
     "unknown_payload": 1,
     "http_request": 1
   },
-  "network_protocols": {
-    "IPv4": 9,
-    "none": 5
-  },
-  "transport_protocols": {
+  "protocols": {
     "none": 9,
     "UDP": 3,
     "TCP": 2
@@ -36,7 +37,7 @@ parsed 14 events from 14 packets (0 skipped, 14 with errors)
     "port": 2,
     "port+payload": 1
   },
-  "error_codes": {
+  "issue_codes": {
     "network/truncated_packet": 4,
     "network/malformed_header": 2,
     "transport/malformed_header": 2,
@@ -48,9 +49,25 @@ parsed 14 events from 14 packets (0 skipped, 14 with errors)
     "application/truncated_body": 1,
     "capture/truncated_packet": 1
   },
+  "preprocess_status": {
+    "partial": 10,
+    "invalid": 4
+  },
+  "processing_action": {
+    "mark": 14
+  },
+  "flow_end_reasons": {
+    "end_of_input": 3
+  },
+  "messages": {
+    "complete": 0,
+    "incomplete": 0
+  },
+  "stage_errors": {},
+  "active_flows": 3,
   "source": {
     "source": "pcap",
-    "origin": "TEST/fixtures/12-malformed.pcap",
+    "origin": "TEST/capture-parser/fixtures/12-malformed.pcap",
     "format": "pcap",
     "linktype": 1,
     "linktype_name": "EN10MB",
