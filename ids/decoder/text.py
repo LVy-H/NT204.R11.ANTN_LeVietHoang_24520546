@@ -1,24 +1,30 @@
 from __future__ import annotations
 
+import codecs
 import re
 
 from ..model import DecodedText, DecodeStatus
 
 _ESCAPED = re.compile("[\udc80-\udcff]")
 _SURROGATE = re.compile("[\ud800-\udfff]")
+# Text codecs that are no content charset: punycode decodes in quadratic pure Python,
+# idna is a hostname transform, and the escape codecs warn on invalid escapes.
+_REFUSED = frozenset({"punycode", "idna", "unicode-escape", "raw-unicode-escape"})
 
 
 def _declared(data: bytes, declared_charset: str | None) -> tuple[str, str] | None:
     """Strict decode with a charset Python knows; None when unknown, failing or unsafe.
 
-    Escape codecs (unicode_escape, utf-7, ...) can yield lone surrogates, which no UTF-8
-    writer accepts, so such a result counts as a failed decode."""
+    Escape codecs (utf-7, ...) can yield lone surrogates, which no UTF-8 writer accepts,
+    so such a result counts as a failed decode. Codecs in _REFUSED count as unknown."""
     if not declared_charset:
         return None
     name = declared_charset.strip().lower()
     if not name:
         return None
     try:
+        if codecs.lookup(name).name in _REFUSED:
+            return None
         text = data.decode(name)
     except (LookupError, ValueError):  # unknown / non-text codec, bad name, UnicodeError
         return None

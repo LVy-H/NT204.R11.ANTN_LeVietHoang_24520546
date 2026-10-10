@@ -138,3 +138,19 @@ def test_empty_input_is_unchanged_empty_text():
     assert result.text == ""
     assert result.status is DecodeStatus.UNCHANGED
     assert result.truncated is False
+
+
+def test_declared_punycode_falls_back_to_utf8():
+    # punycode decodes in quadratic pure Python; it is never a content charset
+    result = decode_text(b"mnchen-3ya", "punycode")
+
+    assert result.text == "mnchen-3ya"
+    assert result.charset == "ascii"
+    assert result.status is DecodeStatus.UNCHANGED
+
+
+def test_unicode_escape_with_invalid_escape_does_not_raise():
+    result = decode_text(b"\\q", "unicode_escape")
+
+    assert result.text == "\\q"
+    assert result.charset == "ascii"
