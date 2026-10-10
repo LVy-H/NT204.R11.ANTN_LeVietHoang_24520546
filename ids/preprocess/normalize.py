@@ -271,8 +271,13 @@ def _smtp(session: SmtpSession, notes: list[str]) -> NormalizedSmtp:
     return result
 
 
+def is_int(value: object) -> bool:
+    """True for a real int; bool is excluded although it subclasses int."""
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
 def _port(value: object) -> int | None:
-    return value if isinstance(value, int) and not isinstance(value, bool) else None
+    return value if is_int(value) else None
 
 
 def normalize(event: PacketEvent) -> tuple[Normalized, list[str]]:
