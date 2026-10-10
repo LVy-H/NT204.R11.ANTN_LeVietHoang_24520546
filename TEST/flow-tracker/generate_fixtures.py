@@ -99,7 +99,15 @@ def jsonl_bytes(lines: list[str]) -> bytes:
     return "".join(line + "\n" for line in lines).encode("utf-8")
 
 
-CASES: dict[str, Callable[[], list[Frame]] | Callable[[], list[str]]] = {}
+def t01_http_url_decode() -> list[Frame]:
+    conn = TcpConversation(server_port=HTTP_PORT)
+    request = b"GET /search%20page?q=%27%20OR%201%3D1&x=a+b HTTP/1.1\r\nHost: example.com\r\n\r\n"
+    return [conn.client(0, "PA", request)]
+
+
+CASES: dict[str, Callable[[], list[Frame]] | Callable[[], list[str]]] = {
+    "T01-http-url-decode.pcap": t01_http_url_decode,
+}
 
 
 def build(name: str) -> bytes:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import importlib.util
 import json
 import sys
@@ -143,3 +144,29 @@ def test_every_fixture_yields_one_outcome_per_input(run_case, fixture):
     )
     tracked = Counter(p["flow"]["flow_id"] for p in run.packets if p["flow"] is not None)
     assert tracked == {flow["flow_id"]: flow["packet_count"] for flow in run.flows}
+
+
+def test_t01_url_and_query_are_percent_decoded_once(run_case):
+    run = run_case(FLOW_FIXTURES / "T01-http-url-decode.pcap")
+    (packet,) = run.packets
+    raw_uri = "/search%20page?q=%27%20OR%201%3D1&x=a+b"
+
+    assert run.exit_code == 0
+    assert packet["application"]["message"]["uri"] == raw_uri
+    assert base64.b64decode(packet["payload"]["data_b64"]).startswith(
+        f"GET {raw_uri} HTTP/1.1\r\n".encode()
+    )
+    assert packet["decoded"]["uri"] == {
+        "text": "/search page?q=' OR 1=1&x=a b",
+        "path": "/search page",
+        "query": "q=' OR 1=1&x=a b",
+        "params": [["q", "' OR 1=1"], ["x", "a b"]],
+        "status": "decoded",
+        "double_encoded": False,
+    }
+    assert packet["decoded"]["form"] is None
+    assert packet["decoded"]["body"] is None
+    assert packet["decoded"]["status"] == "decoded"
+    assert packet["normalized"]["http"]["path"] == "/search page"
+    assert packet["preprocess_status"] == "valid"
+    assert packet["reason"] == []

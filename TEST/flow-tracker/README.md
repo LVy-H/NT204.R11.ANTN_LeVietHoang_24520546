@@ -35,3 +35,4 @@ dưới. Khi test, mọi record nằm chung một stream nên kiểm tra đượ
 
 | Case | Yêu cầu đề bài | Fixture | Kết quả mong đợi |
 |---|---|---|---|
+| T01 | URL decode: path, query, `+` | `T01-http-url-decode.pcap` | `decoded.uri.params` = `[["q", "' OR 1=1"], ["x", "a b"]]`, `decoded.uri.path` = `/search page`, `application.message.uri` giữ nguyên |
