@@ -157,3 +157,22 @@ def test_flows_output_must_differ_from_output(tmp_path, capsys):
     assert caught.value.code == 2
     assert "--flows-output must name a different file than --output" in capsys.readouterr().err
     assert not out.exists()
+
+
+@pytest.mark.parametrize(
+    ("source_flag", "output_flag"),
+    [
+        ("--events", "-o"),
+        ("--events", "--flows-output"),
+        ("--pcap", "-o"),
+        ("--pcap", "--flows-output"),
+    ],
+)
+def test_outputs_must_not_overwrite_the_input(tmp_path, capsys, source_flag, output_flag):
+    source = tmp_path / "input.jsonl"
+    source.write_bytes(b"keep me\n")
+    with pytest.raises(SystemExit) as caught:
+        main([source_flag, str(source), output_flag, f"{tmp_path}/./input.jsonl"])
+    assert caught.value.code == 2
+    assert "must not name the input file" in capsys.readouterr().err
+    assert source.read_bytes() == b"keep me\n"

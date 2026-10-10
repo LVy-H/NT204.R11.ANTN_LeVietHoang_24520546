@@ -279,6 +279,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         and os.path.abspath(args.flows_output) == os.path.abspath(args.output)
     ):
         parser.error("--flows-output must name a different file than --output")
+    source_path = args.events if args.events is not None else args.pcap
+    if source_path not in (None, "-"):
+        for flag, path in (("--output", args.output), ("--flows-output", args.flows_output)):
+            if path not in (None, "-") and os.path.abspath(path) == os.path.abspath(source_path):
+                parser.error(f"{flag} must not name the input file")
     if args.list_interfaces:
         return _print_interfaces()
 
