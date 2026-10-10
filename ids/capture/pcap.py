@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import struct
-from collections import namedtuple
+from collections.abc import Iterator
+from dataclasses import dataclass
 from pathlib import Path
+from typing import BinaryIO
 
-from ..errors import MalformedHeaderError
-from .base import RawPacket, linktype_name
+from ..issues import ParseError
+from ..model import RawPacket
+from .base import linktype_name
 
 MAGIC = {
     b"\xd4\xc3\xb2\xa1": ("<", 1_000_000),
@@ -21,11 +24,26 @@ NG_IDB = 1
 NG_SPB = 3
 NG_EPB = 6
 NG_TSRESOL = 9
+NG_IDB_MIN_BODY = 8
 
-Record = namedtuple("Record", "timestamp linktype data original_length declared_capture_length")
+
+@dataclass(frozen=True, slots=True)
+class _Record:
+    timestamp: float
+    linktype: int
+    data: bytes
+    original_length: int
+    declared_capture_length: int
 
 
-def _options(data, endian):
+@dataclass(frozen=True, slots=True)
+class _Interface:
+    linktype: int
+    snaplen: int
+    divisor: int
+
+
+def _options(data: bytes, endian: str) -> Iterator[tuple[int, bytes]]:
     offset = 0
     while offset + 4 <= len(data):
         code, length = struct.unpack_from(endian + "HH", data, offset)
@@ -35,22 +53,32 @@ def _options(data, endian):
         offset += 4 + length + (-length % 4)
 
 
-class PcapFileCapture:
+def _interface(body: bytes, endian: str) -> _Interface:
+    linktype, _, snaplen = struct.unpack_from(endian + "HHI", body, 0)
+    divisor = 1_000_000
+    for code, value in _options(body[NG_IDB_MIN_BODY:], endian):
+        if code == NG_TSRESOL and value:
+            exponent = value[0] & 0x7F
+            divisor = 2**exponent if value[0] & 0x80 else 10**exponent
+    return _Interface(linktype, snaplen, divisor)
+
+
+class PcapSource:
     source = "pcap"
 
-    def __init__(self, path, *, count=None):
+    def __init__(self, path: str | Path, *, count: int | None = None) -> None:
         self.path = Path(path)
         self.origin = str(self.path)
         self.count = count
-        self.linktype = None
-        self.snaplen = None
-        self.format = None
-        self.warnings = []
+        self.linktype: int | None = None
+        self.snaplen: int | None = None
+        self.format: str | None = None
+        self.warnings: list[str] = []
 
-    def close(self):
-        pass
+    def close(self) -> None:
+        """The file handle lives inside items(); nothing else is held open."""
 
-    def describe(self):
+    def describe(self) -> dict[str, object]:
         return {
             "source": self.source,
             "origin": self.origin,
@@ -61,20 +89,18 @@ class PcapFileCapture:
             "count_limit": self.count,
         }
 
-    def packets(self):
-        with open(self.path, "rb") as handle:
+    def items(self) -> Iterator[RawPacket]:
+        with self.path.open("rb") as handle:
             magic = handle.read(4)
             if len(magic) < 4:
-                raise MalformedHeaderError(
-                    "capture file is empty", stage="capture", path=self.origin
-                )
+                raise ParseError("malformed_header", "capture file is empty", path=self.origin)
             if magic == NG_SHB:
                 records = self._pcapng(handle, magic)
             elif magic in MAGIC:
                 records = self._classic(handle, magic)
             else:
-                raise MalformedHeaderError(
-                    "unrecognised capture file format", stage="capture", magic=magic.hex()
+                raise ParseError(
+                    "malformed_header", "unrecognised capture file format", magic=magic.hex()
                 )
             for index, record in enumerate(records, start=1):
                 if self.count is not None and index > self.count:
@@ -92,13 +118,11 @@ class PcapFileCapture:
                     declared_capture_length=record.declared_capture_length,
                 )
 
-    def _classic(self, handle, magic):
+    def _classic(self, handle: BinaryIO, magic: bytes) -> Iterator[_Record]:
         endian, divisor = MAGIC[magic]
         header = handle.read(20)
         if len(header) < 20:
-            raise MalformedHeaderError(
-                "truncated pcap global header", stage="capture", path=self.origin
-            )
+            raise ParseError("malformed_header", "truncated pcap global header", path=self.origin)
         _, _, _, _, snaplen, network = struct.unpack(endian + "HHiIII", header)
         linktype = network & 0xFFFF
         self.format = "pcap"
@@ -119,18 +143,18 @@ class PcapFileCapture:
                     f"record {ts_sec}.{ts_frac} declares {cap_len} captured bytes, "
                     f"{len(data)} present"
                 )
-            yield Record(ts_sec + ts_frac / divisor, linktype, data, orig_len, cap_len)
+            yield _Record(ts_sec + ts_frac / divisor, linktype, data, orig_len, cap_len)
             if short:
                 self.warnings.append(
                     "stopping at the truncated record, the file position is unreliable"
                 )
                 return
 
-    def _pcapng(self, handle, first_block_type):
+    def _pcapng(self, handle: BinaryIO, first_block_type: bytes) -> Iterator[_Record]:
         self.format = "pcapng"
         endian = "<"
-        interfaces = []
-        pending = first_block_type
+        interfaces: list[_Interface] = []
+        pending: bytes | None = first_block_type
         while True:
             if pending is not None:
                 block_type_raw, pending = pending, None
@@ -177,9 +201,12 @@ class PcapFileCapture:
                 self.warnings.append("truncated pcapng block body")
                 return
             if block_type == NG_IDB:
+                if len(body) < NG_IDB_MIN_BODY:
+                    self.warnings.append("truncated pcapng interface description block")
+                    continue
                 interfaces.append(_interface(body, endian))
                 if self.linktype is None:
-                    self.linktype = interfaces[-1][0]
+                    self.linktype = interfaces[-1].linktype
             elif block_type == NG_EPB:
                 record = self._enhanced(body, endian, interfaces)
                 if record is not None:
@@ -189,7 +216,7 @@ class PcapFileCapture:
                 if record is not None:
                     yield record
 
-    def _enhanced(self, body, endian, interfaces):
+    def _enhanced(self, body: bytes, endian: str, interfaces: list[_Interface]) -> _Record | None:
         if len(body) < 20:
             self.warnings.append("truncated pcapng enhanced packet block")
             return None
@@ -197,28 +224,18 @@ class PcapFileCapture:
         if iface_id >= len(interfaces):
             self.warnings.append(f"pcapng packet references undefined interface {iface_id}")
             return None
-        linktype, _, divisor = interfaces[iface_id]
+        interface = interfaces[iface_id]
         data = body[20 : 20 + cap_len]
         if len(data) < cap_len:
             self.warnings.append(f"pcapng packet declares {cap_len} bytes, {len(data)} present")
-        return Record(((ts_high << 32) | ts_low) / divisor, linktype, data, orig_len, cap_len)
+        timestamp = ((ts_high << 32) | ts_low) / interface.divisor
+        return _Record(timestamp, interface.linktype, data, orig_len, cap_len)
 
-    def _simple(self, body, endian, interfaces):
+    def _simple(self, body: bytes, endian: str, interfaces: list[_Interface]) -> _Record | None:
         if len(body) < 4 or not interfaces:
             self.warnings.append("pcapng simple packet block without a usable interface")
             return None
-        linktype, snaplen, _ = interfaces[0]
+        interface = interfaces[0]
         orig_len = struct.unpack_from(endian + "I", body, 0)[0]
-        available = len(body) - 4
-        captured = min(orig_len, snaplen, available)
-        return Record(0.0, linktype, body[4 : 4 + captured], orig_len, captured)
-
-
-def _interface(body, endian):
-    linktype, _, snaplen = struct.unpack_from(endian + "HHI", body, 0)
-    divisor = 1_000_000
-    for code, value in _options(body[8:], endian):
-        if code == NG_TSRESOL and value:
-            exponent = value[0] & 0x7F
-            divisor = 2**exponent if value[0] & 0x80 else 10**exponent
-    return linktype, snaplen, divisor
+        captured = min(orig_len, interface.snaplen, len(body) - 4)
+        return _Record(0.0, interface.linktype, body[4 : 4 + captured], orig_len, captured)

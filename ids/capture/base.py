@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
-from dataclasses import dataclass
-from typing import Protocol, runtime_checkable
+from typing import Protocol
+
+from ..model import PacketEvent, RawPacket, Tick
 
 DLT_NULL = 0
 DLT_EN10MB = 1
@@ -29,42 +30,19 @@ LINKTYPE_NAMES = {
 }
 
 
-def linktype_name(linktype):
+def linktype_name(linktype: int | None) -> str | None:
     if linktype is None:
         return None
     return LINKTYPE_NAMES.get(linktype, f"UNKNOWN({linktype})")
 
 
-@dataclass(frozen=True, slots=True)
-class RawPacket:
-    packet_id: int
-    timestamp: float
-    data: bytes
-    linktype: int
-    source: str
-    origin: str
-    original_length: int | None = None
-    declared_capture_length: int | None = None
-
-    @property
-    def captured_length(self):
-        return len(self.data)
-
-    @property
-    def truncated(self):
-        return self.declared_capture_length is not None and self.declared_capture_length > len(
-            self.data
-        )
-
-
-@runtime_checkable
 class CaptureSource(Protocol):
     source: str
     origin: str
-    linktype: int
+    warnings: list[str]
 
-    def packets(self) -> Iterator[RawPacket]: ...
+    def items(self) -> Iterator[RawPacket | PacketEvent | Tick]: ...
 
-    def describe(self) -> dict: ...
+    def describe(self) -> dict[str, object]: ...
 
     def close(self) -> None: ...

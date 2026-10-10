@@ -1,10 +1,13 @@
+from __future__ import annotations
+
 import struct
 
 import pytest
 
-from ids.capture.base import RawPacket, linktype_name
-from ids.capture.pcap import PcapFileCapture
-from ids.errors import MalformedHeaderError
+from ids.capture.base import linktype_name
+from ids.capture.pcap import PcapSource
+from ids.issues import ParseError
+from ids.model import RawPacket
 
 TS = 1759000000
 FRAME_A = bytes.fromhex("0200000000020200000000010800") + bytes.fromhex(
@@ -61,8 +64,8 @@ def write(tmp_path, raw, name="capture.pcap"):
 
 def test_classic_little_endian(tmp_path):
     raw = classic([(TS, 250000, FRAME_A, len(FRAME_A)), (TS + 1, 500000, FRAME_B, len(FRAME_B))])
-    source = PcapFileCapture(write(tmp_path, raw))
-    packets = list(source.packets())
+    source = PcapSource(write(tmp_path, raw))
+    packets = list(source.items())
     assert source.format == "pcap"
     assert source.linktype == 1
     assert source.snaplen == 262144
@@ -73,25 +76,27 @@ def test_classic_little_endian(tmp_path):
     assert packets[0].data == FRAME_A
     assert packets[0].original_length == len(FRAME_A)
     assert packets[0].truncated is False
+    assert packets[0].source == "pcap"
+    assert packets[0].origin == str(tmp_path / "capture.pcap")
 
 
 def test_classic_big_endian(tmp_path):
     raw = classic([(TS, 250000, FRAME_A, len(FRAME_A))], endian=">")
-    packets = list(PcapFileCapture(write(tmp_path, raw)).packets())
+    packets = list(PcapSource(write(tmp_path, raw)).items())
     assert packets[0].timestamp == pytest.approx(TS + 0.25)
     assert packets[0].data == FRAME_A
 
 
 def test_classic_nanosecond_magic(tmp_path):
     raw = classic([(TS, 123456789, FRAME_A, len(FRAME_A))], divisor=1_000_000_000)
-    packets = list(PcapFileCapture(write(tmp_path, raw)).packets())
+    packets = list(PcapSource(write(tmp_path, raw)).items())
     assert packets[0].timestamp == pytest.approx(TS + 0.123456789)
 
 
 def test_truncated_record_stops_reading_and_warns(tmp_path):
     raw = classic([(TS, 0, FRAME_A, len(FRAME_A)), (TS + 1, 0, FRAME_B, 400)])
-    source = PcapFileCapture(write(tmp_path, raw))
-    packets = list(source.packets())
+    source = PcapSource(write(tmp_path, raw))
+    packets = list(source.items())
     assert len(packets) == 2
     assert packets[1].declared_capture_length == 400
     assert packets[1].truncated is True
@@ -101,17 +106,34 @@ def test_truncated_record_stops_reading_and_warns(tmp_path):
 
 def test_classic_count_limit(tmp_path):
     raw = classic([(TS, 0, FRAME_A, len(FRAME_A))] * 5)
-    assert len(list(PcapFileCapture(write(tmp_path, raw), count=2).packets())) == 2
+    assert len(list(PcapSource(write(tmp_path, raw), count=2).items())) == 2
 
 
-def test_unknown_magic_is_rejected(tmp_path):
-    with pytest.raises(MalformedHeaderError):
-        list(PcapFileCapture(write(tmp_path, b"NOPE" + b"\x00" * 40)).packets())
+def test_unknown_magic_is_a_malformed_header(tmp_path):
+    with pytest.raises(ParseError) as caught:
+        list(PcapSource(write(tmp_path, b"NOPE" + b"\x00" * 40)).items())
+    assert caught.value.code == "malformed_header"
+    assert caught.value.message == "unrecognised capture file format"
+    assert caught.value.context == {"magic": "4e4f5045"}
 
 
-def test_empty_file_is_rejected(tmp_path):
-    with pytest.raises(MalformedHeaderError):
-        list(PcapFileCapture(write(tmp_path, b"")).packets())
+def test_empty_file_is_a_malformed_header(tmp_path):
+    with pytest.raises(ParseError) as caught:
+        list(PcapSource(write(tmp_path, b"")).items())
+    assert caught.value.code == "malformed_header"
+    assert caught.value.message == "capture file is empty"
+
+
+def test_truncated_global_header_is_a_malformed_header(tmp_path):
+    with pytest.raises(ParseError) as caught:
+        list(PcapSource(write(tmp_path, b"\xd4\xc3\xb2\xa1" + b"\x00" * 10)).items())
+    assert caught.value.code == "malformed_header"
+    assert caught.value.message == "truncated pcap global header"
+
+
+def test_missing_file_raises_oserror(tmp_path):
+    with pytest.raises(OSError):
+        list(PcapSource(tmp_path / "missing.pcap").items())
 
 
 def test_pcapng_little_endian(tmp_path):
@@ -120,8 +142,8 @@ def test_pcapng_little_endian(tmp_path):
         + interface_description()
         + enhanced_packet(FRAME_A, TS * 1_000_000 + 250000)
     )
-    source = PcapFileCapture(write(tmp_path, raw, "capture.pcapng"))
-    packets = list(source.packets())
+    source = PcapSource(write(tmp_path, raw, "capture.pcapng"))
+    packets = list(source.items())
     assert source.format == "pcapng"
     assert source.linktype == 1
     assert packets[0].timestamp == pytest.approx(TS + 0.25)
@@ -134,7 +156,7 @@ def test_pcapng_big_endian(tmp_path):
         + interface_description(endian=">")
         + enhanced_packet(FRAME_A, TS * 1_000_000 + 250000, endian=">")
     )
-    packets = list(PcapFileCapture(write(tmp_path, raw, "capture.pcapng")).packets())
+    packets = list(PcapSource(write(tmp_path, raw, "capture.pcapng")).items())
     assert packets[0].timestamp == pytest.approx(TS + 0.25)
     assert packets[0].data == FRAME_A
 
@@ -145,7 +167,7 @@ def test_pcapng_custom_timestamp_resolution(tmp_path):
         + interface_description(tsresol=9)
         + enhanced_packet(FRAME_A, TS * 1_000_000_000 + 500000000)
     )
-    packets = list(PcapFileCapture(write(tmp_path, raw, "capture.pcapng")).packets())
+    packets = list(PcapSource(write(tmp_path, raw, "capture.pcapng")).items())
     assert packets[0].timestamp == pytest.approx(TS + 0.5)
 
 
@@ -155,40 +177,54 @@ def test_pcapng_binary_timestamp_resolution(tmp_path):
         + interface_description(tsresol=0x80 | 10)
         + enhanced_packet(FRAME_A, TS * 1024)
     )
-    packets = list(PcapFileCapture(write(tmp_path, raw, "capture.pcapng")).packets())
+    packets = list(PcapSource(write(tmp_path, raw, "capture.pcapng")).items())
     assert packets[0].timestamp == pytest.approx(TS)
 
 
 def test_pcapng_simple_packet_block_has_no_timestamp(tmp_path):
     body = struct.pack("<I", len(FRAME_A)) + FRAME_A + b"\x00" * (-len(FRAME_A) % 4)
     raw = section_header() + interface_description() + block(3, body)
-    packets = list(PcapFileCapture(write(tmp_path, raw, "capture.pcapng")).packets())
+    packets = list(PcapSource(write(tmp_path, raw, "capture.pcapng")).items())
     assert packets[0].timestamp == 0.0
     assert packets[0].data == FRAME_A
 
 
 def test_pcapng_packet_without_interface_is_skipped(tmp_path):
     raw = section_header() + enhanced_packet(FRAME_A, TS * 1_000_000)
-    source = PcapFileCapture(write(tmp_path, raw, "capture.pcapng"))
-    assert list(source.packets()) == []
+    source = PcapSource(write(tmp_path, raw, "capture.pcapng"))
+    assert list(source.items()) == []
     assert any("undefined interface" in warning for warning in source.warnings)
 
 
 def test_pcapng_bad_block_length_warns(tmp_path):
     raw = section_header() + struct.pack("<II", 1, 3)
-    source = PcapFileCapture(write(tmp_path, raw, "capture.pcapng"))
-    assert list(source.packets()) == []
+    source = PcapSource(write(tmp_path, raw, "capture.pcapng"))
+    assert list(source.items()) == []
     assert any("invalid pcapng block length" in warning for warning in source.warnings)
+
+
+def test_pcapng_short_interface_block_warns_instead_of_crashing(tmp_path):
+    raw = (
+        section_header()
+        + block(1, b"\x01\x00\x00\x00")
+        + interface_description()
+        + enhanced_packet(FRAME_A, TS * 1_000_000)
+    )
+    source = PcapSource(write(tmp_path, raw, "capture.pcapng"))
+    packets = list(source.items())
+    assert source.warnings == ["truncated pcapng interface description block"]
+    assert [packet.data for packet in packets] == [FRAME_A]
 
 
 def test_describe_and_linktype_name():
     assert linktype_name(1) == "EN10MB"
     assert linktype_name(None) is None
     assert linktype_name(4242) == "UNKNOWN(4242)"
-    source = PcapFileCapture("missing.pcap")
-    described = source.describe()
+    described = PcapSource("missing.pcap", count=3).describe()
     assert described["source"] == "pcap"
     assert described["origin"].endswith("missing.pcap")
+    assert described["count_limit"] == 3
+    assert described["format"] is None
 
 
 def test_rawpacket_helpers():

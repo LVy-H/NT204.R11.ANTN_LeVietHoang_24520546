@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Iterator
+from typing import Any
 
-from .base import DLT_EN10MB, RawPacket
+from ..model import RawPacket
+from .base import DLT_EN10MB
 
 PERMISSION_HINT = (
     "live capture requires CAP_NET_RAW (Linux) or administrator rights; "
@@ -10,7 +13,7 @@ PERMISSION_HINT = (
 )
 
 
-def scapy_module():
+def scapy_module() -> Any:
     try:
         import scapy.all as scapy_all
     except ImportError as exc:
@@ -20,12 +23,12 @@ def scapy_module():
     return scapy_all
 
 
-def list_interfaces():
+def list_interfaces() -> list[dict[str, object]]:
     scapy_all = scapy_module()
-    interfaces = []
+    interfaces: list[dict[str, object]] = []
     for name in scapy_all.get_if_list():
         entry = scapy_all.conf.ifaces.get(name)
-        ips = []
+        ips: list[str] = []
         if entry is not None:
             for family in (4, 6):
                 ips.extend(entry.ips.get(family, []))
@@ -40,46 +43,43 @@ def list_interfaces():
     return interfaces
 
 
-class LiveCapture:
+class LiveSource:
     source = "live"
-    linktype = DLT_EN10MB
 
     def __init__(
         self,
-        interface,
+        interface: str,
         *,
-        bpf_filter=None,
-        count=None,
-        promiscuous=True,
-        idle_timeout=None,
-        poll_interval=1.0,
-    ):
+        bpf_filter: str | None = None,
+        count: int | None = None,
+        promiscuous: bool = True,
+        capture_idle_timeout: float | None = None,
+        poll_interval: float = 1.0,
+    ) -> None:
         self.interface = interface
         self.origin = interface
         self.bpf_filter = bpf_filter
         self.count = count
         self.promiscuous = promiscuous
-        self.idle_timeout = idle_timeout
+        self.capture_idle_timeout = capture_idle_timeout
         self.poll_interval = poll_interval
-        self.warnings = []
+        self.warnings: list[str] = []
 
-    def close(self):
-        pass
+    def close(self) -> None:
+        """The socket is opened and closed inside items(); nothing else is held."""
 
-    def describe(self):
+    def describe(self) -> dict[str, object]:
         return {
             "source": self.source,
             "origin": self.origin,
             "interface": self.interface,
-            "linktype": self.linktype,
             "bpf_filter": self.bpf_filter,
             "promiscuous": self.promiscuous,
             "count_limit": self.count,
-            "idle_timeout": self.idle_timeout,
+            "capture_idle_timeout": self.capture_idle_timeout,
         }
 
-    def _open_socket(self):
-        scapy_all = scapy_module()
+    def _open_socket(self, scapy_all: Any) -> Any:
         available = scapy_all.get_if_list()
         if self.interface not in available:
             raise RuntimeError(
@@ -102,18 +102,22 @@ class LiveCapture:
         except PermissionError as exc:
             raise RuntimeError(PERMISSION_HINT) from exc
 
-    def packets(self):
-        socket = self._open_socket()
+    def items(self) -> Iterator[RawPacket]:
+        scapy_all = scapy_module()
+        socket = self._open_socket(scapy_all)
+        layer2num = scapy_all.conf.l2types.layer2num
         index = 0
         last_packet = time.monotonic()
         try:
-            while True:
-                if self.count is not None and index >= self.count:
-                    return
+            while self.count is None or index < self.count:
                 if not socket.select([socket], self.poll_interval):
-                    if self.idle_timeout and time.monotonic() - last_packet >= self.idle_timeout:
+                    if (
+                        self.capture_idle_timeout
+                        and time.monotonic() - last_packet >= self.capture_idle_timeout
+                    ):
                         self.warnings.append(
-                            f"live capture stopped after {self.idle_timeout}s without traffic"
+                            f"live capture stopped after {self.capture_idle_timeout}s"
+                            " without traffic"
                         )
                         return
                     continue
@@ -122,20 +126,23 @@ class LiveCapture:
                     continue
                 last_packet = time.monotonic()
                 index += 1
-                try:
-                    timestamp = float(packet.time)
-                except (TypeError, ValueError):
-                    timestamp = time.time()
-                data = bytes(packet)
-                yield RawPacket(
-                    packet_id=index,
-                    timestamp=timestamp,
-                    data=data,
-                    linktype=self.linktype,
-                    source=self.source,
-                    origin=self.origin,
-                    original_length=len(data),
-                    declared_capture_length=len(data),
-                )
+                yield self._raw_packet(index, packet, layer2num.get(type(packet), DLT_EN10MB))
         finally:
             socket.close()
+
+    def _raw_packet(self, index: int, packet: Any, linktype: int) -> RawPacket:
+        try:
+            timestamp = float(packet.time)
+        except (TypeError, ValueError):
+            timestamp = time.time()
+        data = bytes(packet)
+        return RawPacket(
+            packet_id=index,
+            timestamp=timestamp,
+            data=data,
+            linktype=linktype,
+            source=self.source,
+            origin=self.origin,
+            original_length=len(data),
+            declared_capture_length=len(data),
+        )
