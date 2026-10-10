@@ -144,7 +144,7 @@ def remove_dot_segments(path: str) -> str:
                 output.pop()
             output.append("/")
             i = end
-        elif path[i:] in (".", ".."):
+        elif end - i <= 2 and path[i:] in (".", ".."):
             i = end
         else:
             stop = path.find("/", i + 1 if path.startswith("/", i) else i)

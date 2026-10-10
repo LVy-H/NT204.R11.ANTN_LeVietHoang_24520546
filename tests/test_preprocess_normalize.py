@@ -166,12 +166,32 @@ def test_empty_host_is_absent_not_invalid():
         ("/a/.", "/a/"),
         ("../../a", "a"),
         (".", ""),
+        ("..", ""),
+        ("a/..", "/"),
         ("/a/b/..", "/a/"),
         ("/.hidden/..x", "/.hidden/..x"),
     ],
 )
 def test_remove_dot_segments_follows_rfc_3986(path, expected):
     assert remove_dot_segments(path) == expected
+
+
+class CopyCountingPath(str):
+    """Counts the characters copied out by slicing, to pin remove_dot_segments as linear."""
+
+    copied = 0
+
+    def __getitem__(self, key):
+        piece = super().__getitem__(key)
+        self.copied += len(piece)
+        return piece
+
+
+def test_remove_dot_segments_copies_each_character_once():
+    path = CopyCountingPath("/a" * 5000 + "/b/..")
+
+    assert remove_dot_segments(path) == "/a" * 5000 + "/"
+    assert path.copied <= len(path)
 
 
 def test_path_collapses_slashes_before_removing_dot_segments_and_keeps_case():
