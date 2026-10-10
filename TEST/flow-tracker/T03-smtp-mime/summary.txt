@@ -1,0 +1,58 @@
+source: pcap TEST/flow-tracker/fixtures/T03-smtp-mime.pcap
+wrote 24 records from 21 packets (0 dropped, 0 skipped, 0 with issues)
+{
+  "packets_seen": 21,
+  "records_written": {
+    "packet": 21,
+    "message": 2,
+    "flow": 1
+  },
+  "dropped": 0,
+  "skipped": 0,
+  "packets_with_issues": 0,
+  "first_timestamp": 1759000000.0,
+  "last_timestamp": 1759000000.2,
+  "event_types": {
+    "smtp_response": 9,
+    "smtp_command": 6,
+    "tcp_segment": 3,
+    "smtp_data": 3
+  },
+  "protocols": {
+    "TCP": 21
+  },
+  "application_protocols": {
+    "SMTP": 18,
+    "UNKNOWN": 3
+  },
+  "detection_methods": {
+    "port+payload": 15,
+    "none": 3,
+    "port": 3
+  },
+  "issue_codes": {},
+  "preprocess_status": {
+    "valid": 23
+  },
+  "processing_action": {
+    "forward": 23
+  },
+  "flow_end_reasons": {
+    "end_of_input": 1
+  },
+  "messages": {
+    "complete": 2,
+    "incomplete": 0
+  },
+  "stage_errors": {},
+  "active_flows": 1,
+  "source": {
+    "source": "pcap",
+    "origin": "TEST/flow-tracker/fixtures/T03-smtp-mime.pcap",
+    "format": "pcap",
+    "linktype": 1,
+    "linktype_name": "EN10MB",
+    "snaplen": 262144,
+    "count_limit": null
+  }
+}

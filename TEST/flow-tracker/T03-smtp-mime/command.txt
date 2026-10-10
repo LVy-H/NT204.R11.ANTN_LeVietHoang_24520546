@@ -1,0 +1,1 @@
+.venv/bin/python main.py --pcap TEST/flow-tracker/fixtures/T03-smtp-mime.pcap --output TEST/flow-tracker/T03-smtp-mime/output.jsonl --flows-output TEST/flow-tracker/T03-smtp-mime/flows.jsonl --stats

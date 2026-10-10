@@ -37,3 +37,4 @@ dưới. Khi test, mọi record nằm chung một stream nên kiểm tra đượ
 |---|---|---|---|
 | T01 | URL decode: path, query, `+` | `T01-http-url-decode.pcap` | `decoded.uri.params` = `[["q", "' OR 1=1"], ["x", "a b"]]`, `decoded.uri.path` = `/search page`, `application.message.uri` giữ nguyên |
 | T02 | HTML entity | `T02-html-entities.pcap` | `decoded.body.text` = `<script>alert(1)</script> & ' &bogus;`, `entity_count` = 6, `issues` rỗng |
+| T03 | SMTP / MIME: Base64 + Quoted-Printable, ghép 2 segment | `T03-smtp-mime.pcap` | 2 record `message` (packet 13+14 và 18), mọi part `status` = `decoded`, text đúng từng ký tự; packet 18 có `decoded.kind` = `mime` |

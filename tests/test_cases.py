@@ -50,6 +50,14 @@ PACKET_KEYS = [
 ]
 
 
+BASE_TIME = 1759000000
+
+
+def at(offset_ms: int) -> float:
+    """Timestamp the pcap reader yields for a fixture frame at `offset_ms`."""
+    return (BASE_TIME + offset_ms // 1000) + (offset_ms % 1000) * 1000 / 1_000_000
+
+
 @dataclass
 class CaseRun:
     exit_code: int
@@ -191,3 +199,93 @@ def test_t02_html_entities_are_decoded_and_unknown_ones_kept(run_case):
     assert packet["decoded"]["status"] == "decoded"
     assert packet["issues"] == []
     assert packet["preprocess_status"] == "valid"
+
+
+T03_HEADERS = {
+    "subject": "Báo cáo tuần",
+    "from": "Alice <alice@example.test>",
+    "to": "Bob <bob@example.test>",
+    "cc": None,
+    "date": None,
+    "message_id": None,
+}
+T03_MULTIPART_PARTS = [
+    {
+        "index": 0,
+        "content_type": "text/plain",
+        "charset": "utf-8",
+        "transfer_encoding": "base64",
+        "filename": None,
+        "size": 35,
+        "sha256": "1e78af1dac7301009561066b6a2ed3c851329bc274c34e672fce9f2b7a5c5e46",
+        "text": "Xin chào, đây là phần Base64.",
+        "status": "decoded",
+        "truncated": False,
+    },
+    {
+        "index": 1,
+        "content_type": "text/plain",
+        "charset": "utf-8",
+        "transfer_encoding": "quoted-printable",
+        "filename": None,
+        "size": 26,
+        "sha256": "dad562aa03eba1334b75bb2ad0377e70dbdd360fef611294966bb6d302a14a9c",
+        "text": "Café = 3 euro, softbreak.",
+        "status": "decoded",
+        "truncated": False,
+    },
+]
+T03_SINGLE_PART = {
+    "index": 0,
+    "content_type": "text/plain",
+    "charset": "utf-8",
+    "transfer_encoding": "quoted-printable",
+    "filename": None,
+    "size": 41,
+    "sha256": "e9424246ed8150d13a07d1e86c919aadc274cf54617827d882402fb17acbd309",
+    "text": "Giờ họp lúc 9h.\r\n.dot-stuffed line\r\n",
+    "status": "decoded",
+    "truncated": False,
+}
+
+
+def test_t03_split_smtp_message_is_reassembled_and_mime_decoded(run_case, generator):
+    run = run_case(FLOW_FIXTURES / "T03-smtp-mime.pcap")
+    assert len(run.messages) == 2
+    first = run.messages[0]
+    (flow,) = run.flows
+    flow_id = flow["flow_id"]
+
+    assert run.exit_code == 0
+    assert flow["application_protocol"] == "SMTP"
+    assert first["message_id"] == f"{flow_id}-1"
+    assert first["flow_id"] == flow_id
+    assert first["protocol"] == "SMTP"
+    assert first["packet_ids"] == [13, 14]
+    assert first["start_time"] == at(120)
+    assert first["end_time"] == at(130)
+    assert base64.b64decode(first["data_b64"]) == generator.t03_multipart_message()
+    assert (first["complete"], first["truncated"], first["gap"]) == (True, False, False)
+    assert first["decoded"]["headers"] == T03_HEADERS
+    assert first["decoded"]["parts"] == T03_MULTIPART_PARTS
+    assert first["decoded"]["status"] == "decoded"
+    assert first["preprocess_status"] == "valid"
+    assert first["reason"] == []
+    # emitted while the segment holding "\r\n.\r\n" is processed, before its packet record
+    assert run.position(run.packet(13)) < run.position(first) < run.position(run.packet(14))
+    assert run.stats["messages"] == {"complete": 2, "incomplete": 0}
+
+
+def test_t03_single_segment_message_is_decoded_at_packet_level(run_case):
+    run = run_case(FLOW_FIXTURES / "T03-smtp-mime.pcap")
+    packet = run.packet(18)
+    second = run.messages[1]
+
+    assert packet["application"]["message"]["kind"] == "data"
+    assert packet["decoded"]["kind"] == "mime"
+    assert packet["decoded"]["headers"]["subject"] == "single segment"
+    assert packet["decoded"]["parts"] == [T03_SINGLE_PART]
+    assert packet["decoded"]["status"] == "decoded"
+    assert packet["preprocess_status"] == "valid"
+    assert second["packet_ids"] == [18]
+    assert second["decoded"]["parts"] == [T03_SINGLE_PART]

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import json
 import struct
 from collections.abc import Callable
@@ -120,9 +121,80 @@ def t02_html_entities() -> list[Frame]:
     return [conn.server(0, "PA", http_response(body, "text/html"))]
 
 
+T03_SUBJECT = "Báo cáo tuần"
+T03_BASE64_TEXT = "Xin chào, đây là phần Base64."
+T03_QP_BODY = b"Caf=C3=A9 =3D 3 euro, soft=\r\nbreak."
+T03_SINGLE = (
+    b"From: Alice <alice@example.test>\r\n"
+    b"To: Bob <bob@example.test>\r\n"
+    b"Subject: single segment\r\n"
+    b"MIME-Version: 1.0\r\n"
+    b"Content-Type: text/plain; charset=utf-8\r\n"
+    b"Content-Transfer-Encoding: quoted-printable\r\n"
+    b"\r\n"
+    b"Gi=E1=BB=9D h=E1=BB=8Dp l=C3=BAc 9h.\r\n"
+    b"..dot-stuffed line\r\n"
+    b".\r\n"
+)
+
+
+def t03_multipart_message() -> bytes:
+    """DATA content of the first message, terminator included."""
+    subject = base64.b64encode(T03_SUBJECT.encode()).decode()
+    text = base64.b64encode(T03_BASE64_TEXT.encode()).decode()
+    head = (
+        "From: Alice <alice@example.test>\r\n"
+        "To: Bob <bob@example.test>\r\n"
+        f"Subject: =?UTF-8?B?{subject}?=\r\n"
+        "MIME-Version: 1.0\r\n"
+        'Content-Type: multipart/mixed; boundary="b1"\r\n'
+        "\r\n"
+        "--b1\r\n"
+        "Content-Type: text/plain; charset=utf-8\r\n"
+        "Content-Transfer-Encoding: base64\r\n"
+        "\r\n"
+        f"{text}\r\n"
+        "--b1\r\n"
+        "Content-Type: text/plain; charset=utf-8\r\n"
+        "Content-Transfer-Encoding: quoted-printable\r\n"
+        "\r\n"
+    )
+    return head.encode() + T03_QP_BODY + b"\r\n--b1--\r\n.\r\n"
+
+
+def t03_smtp_mime() -> list[Frame]:
+    conn = TcpConversation(server_port=SMTP_PORT)
+    message = t03_multipart_message()
+    split = message.rindex(b"--b1\r\n")  # second segment starts at the second part
+    return [
+        conn.client(0, "S"),
+        conn.server(10, "SA"),
+        conn.client(20, "A"),
+        conn.server(30, "PA", b"220 mail.example.test ESMTP\r\n"),
+        conn.client(40, "PA", b"EHLO client.example.test\r\n"),
+        conn.server(50, "PA", b"250 mail.example.test\r\n"),
+        conn.client(60, "PA", b"MAIL FROM:<alice@example.test>\r\n"),
+        conn.server(70, "PA", b"250 2.1.0 Ok\r\n"),
+        conn.client(80, "PA", b"RCPT TO:<bob@example.test>\r\n"),
+        conn.server(90, "PA", b"250 2.1.5 Ok\r\n"),
+        conn.client(100, "PA", b"DATA\r\n"),
+        conn.server(110, "PA", b"354 End data with <CR><LF>.<CR><LF>\r\n"),
+        conn.client(120, "PA", message[:split]),
+        conn.client(130, "PA", message[split:]),
+        conn.server(140, "PA", b"250 2.0.0 Ok: queued as A1\r\n"),
+        conn.client(150, "PA", b"DATA\r\n"),
+        conn.server(160, "PA", b"354 End data with <CR><LF>.<CR><LF>\r\n"),
+        conn.client(170, "PA", T03_SINGLE),
+        conn.server(180, "PA", b"250 2.0.0 Ok: queued as A2\r\n"),
+        conn.client(190, "PA", b"QUIT\r\n"),
+        conn.server(200, "PA", b"221 2.0.0 Bye\r\n"),
+    ]
+
+
 CASES: dict[str, Callable[[], list[Frame]] | Callable[[], list[str]]] = {
     "T01-http-url-decode.pcap": t01_http_url_decode,
     "T02-html-entities.pcap": t02_html_entities,
+    "T03-smtp-mime.pcap": t03_smtp_mime,
 }
 
 
