@@ -1,12 +1,17 @@
 from __future__ import annotations
 
 import builtins
+import json
+import time
 
 import pytest
 from fake_scapy import FakePacket, FakeScapy
+from golden import UDP
 
 from ids.capture import live
 from ids.capture.live import PERMISSION_HINT, LiveSource, list_interfaces
+from ids.cli import main
+from ids.model import RawPacket, Tick
 
 FRAME_A = bytes.fromhex("0200000000020200000000010800") + b"\x45" + b"\x00" * 41
 FRAME_B = bytes.fromhex("0200000000020200000000010800") + b"\x45" + b"\x01" * 41
@@ -132,3 +137,30 @@ def test_scapy_module_reports_a_missing_dependency(monkeypatch):
     with pytest.raises(RuntimeError) as caught:
         live.scapy_module()
     assert "scapy is required" in str(caught.value)
+
+
+def test_tick_mode_yields_ticks_while_the_interface_is_idle(fake):
+    fake(packets=[FakePacket(UDP, 1759000000.5)])
+    before = time.time()
+    items = list(LiveSource("eth0", tick=True, capture_idle_timeout=0.05).items())
+    after = time.time()
+    assert isinstance(items[0], RawPacket)
+    ticks = items[1:]
+    assert ticks
+    assert all(isinstance(item, Tick) and before <= item.now <= after for item in ticks)
+
+
+def test_no_ticks_without_tick_mode(fake):
+    fake(packets=[FakePacket(UDP, 1759000000.5)])
+    items = list(LiveSource("eth0", capture_idle_timeout=0.05).items())
+    assert [type(item) for item in items] == [RawPacket]
+
+
+def test_live_run_expires_idle_flows_on_ticks(fake, tmp_path):
+    fake(packets=[FakePacket(UDP, time.time() - 30)])
+    out = tmp_path / "out.jsonl"
+    argv = ["-i", "eth0", "-o", str(out), "-q", "--capture-idle-timeout", "0.2"]
+    assert main([*argv, "--udp-idle-timeout", "1"]) == 0
+    records = [json.loads(line) for line in out.read_text().splitlines()]
+    assert [r["record_type"] for r in records] == ["packet", "flow"]
+    assert records[1]["end_reason"] == "idle_timeout"

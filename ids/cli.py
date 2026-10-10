@@ -3,12 +3,14 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 import sys
 from collections.abc import Sequence
 
 from . import __version__
 from .capture import EventsSource, LiveSource, PcapSource, list_interfaces
 from .decoder import DecoderConfig, DecoderStage
+from .flow import FlowConfig, FlowTrackerStage
 from .issues import ParseError
 from .parsers import PacketParser, ParserConfig
 from .pipeline import UNKNOWN_POLICIES, Runner, Stage
@@ -147,16 +149,67 @@ def build_parser() -> argparse.ArgumentParser:
         "--quiet", "-q", action="store_true", help="suppress status messages on stderr"
     )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
+    parser.add_argument(
+        "--flows-output",
+        metavar="FILE",
+        default=None,
+        help="write flow records to FILE instead of the main output",
+    )
+    parser.add_argument(
+        "--tcp-idle-timeout",
+        type=non_negative_float,
+        default=300.0,
+        metavar="SECONDS",
+        help="export an open TCP flow after this long without packets (default: 300)",
+    )
+    parser.add_argument(
+        "--udp-idle-timeout",
+        type=non_negative_float,
+        default=60.0,
+        metavar="SECONDS",
+        help="export a UDP flow after this long without packets (default: 60)",
+    )
+    parser.add_argument(
+        "--tcp-closed-timeout",
+        type=non_negative_float,
+        default=5.0,
+        metavar="SECONDS",
+        help="keep a closed or reset TCP flow this long for trailing packets (default: 5)",
+    )
+    parser.add_argument(
+        "--max-flows",
+        type=positive_int,
+        default=100_000,
+        metavar="N",
+        help="evict the least recently active flow above N active flows (default: 100000)",
+    )
+    parser.add_argument(
+        "--max-message-bytes",
+        type=positive_int,
+        default=1_048_576,
+        metavar="BYTES",
+        help="bytes kept per reassembled SMTP message (default: 1048576)",
+    )
     return parser
 
 
-def build_stages(args: argparse.Namespace) -> list[Stage]:
+def build_stages(args: argparse.Namespace, stats: Stats) -> list[Stage]:
     return [
         DecoderStage(DecoderConfig(max_decoded_bytes=args.max_decoded_bytes)),
         PreprocessorStage(
             PreprocessConfig(
                 invalid_policy=args.invalid_policy, unsupported_policy=args.unsupported_policy
             )
+        ),
+        FlowTrackerStage(
+            FlowConfig(
+                tcp_idle_timeout=args.tcp_idle_timeout,
+                udp_idle_timeout=args.udp_idle_timeout,
+                tcp_closed_timeout=args.tcp_closed_timeout,
+                max_flows=args.max_flows,
+                max_message_bytes=args.max_message_bytes,
+            ),
+            stats,
         ),
     ]
 
@@ -189,6 +242,7 @@ def _open_source(args: argparse.Namespace) -> PcapSource | LiveSource | EventsSo
             bpf_filter=args.bpf_filter,
             count=args.count,
             capture_idle_timeout=args.capture_idle_timeout,
+            tick=True,
         )
     if args.events is not None:
         return EventsSource(args.events, count=args.count)
@@ -217,13 +271,20 @@ def _report(
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    args = build_parser().parse_args(argv)
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    if (
+        args.flows_output not in (None, "-")
+        and args.output != "-"
+        and os.path.abspath(args.flows_output) == os.path.abspath(args.output)
+    ):
+        parser.error("--flows-output must name a different file than --output")
     if args.list_interfaces:
         return _print_interfaces()
 
     source = _open_source(args)
     stats = Stats()
-    stages = build_stages(args)
+    stages = build_stages(args, stats)
     packet_parser = PacketParser(
         ParserConfig(max_payload_bytes=args.max_payload_bytes, preview_limit=args.preview_limit)
     )
@@ -231,7 +292,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     _note(args.quiet, f"source: {source.source} {source.origin}")
     try:
-        with JsonlSink(args.output) as sink:
+        with JsonlSink(args.output, flows_path=args.flows_output) as sink:
             runner = Runner(packet_parser, stages, sink, stats, unknown_policy=args.unknown_policy)
             try:
                 runner.run(source.items())

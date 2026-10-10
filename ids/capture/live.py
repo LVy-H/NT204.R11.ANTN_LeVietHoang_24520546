@@ -4,7 +4,7 @@ import time
 from collections.abc import Iterator
 from typing import Any
 
-from ..model import RawPacket
+from ..model import RawPacket, Tick
 from .base import DLT_EN10MB
 
 PERMISSION_HINT = (
@@ -55,6 +55,7 @@ class LiveSource:
         promiscuous: bool = True,
         capture_idle_timeout: float | None = None,
         poll_interval: float = 1.0,
+        tick: bool = False,
     ) -> None:
         self.interface = interface
         self.origin = interface
@@ -63,6 +64,7 @@ class LiveSource:
         self.promiscuous = promiscuous
         self.capture_idle_timeout = capture_idle_timeout
         self.poll_interval = poll_interval
+        self.tick = tick
         self.warnings: list[str] = []
 
     def close(self) -> None:
@@ -102,7 +104,7 @@ class LiveSource:
         except PermissionError as exc:
             raise RuntimeError(PERMISSION_HINT) from exc
 
-    def items(self) -> Iterator[RawPacket]:
+    def items(self) -> Iterator[RawPacket | Tick]:
         scapy_all = scapy_module()
         socket = self._open_socket(scapy_all)
         layer2num = scapy_all.conf.l2types.layer2num
@@ -120,6 +122,8 @@ class LiveSource:
                             " without traffic"
                         )
                         return
+                    if self.tick:
+                        yield Tick(time.time())  # lets the flow tracker expire idle flows
                     continue
                 packet = socket.recv()
                 if packet is None:
