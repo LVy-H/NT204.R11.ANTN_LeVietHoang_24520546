@@ -105,8 +105,24 @@ def t01_http_url_decode() -> list[Frame]:
     return [conn.client(0, "PA", request)]
 
 
+def http_response(body: bytes, content_type: str) -> bytes:
+    return (
+        b"HTTP/1.1 200 OK\r\n"
+        b"Content-Type: " + content_type.encode() + b"\r\n"
+        b"Content-Length: " + str(len(body)).encode() + b"\r\n"
+        b"\r\n" + body
+    )
+
+
+def t02_html_entities() -> list[Frame]:
+    conn = TcpConversation(server_port=HTTP_PORT)
+    body = b"&lt;script&gt;alert(1)&lt;/script&gt; &amp; &#x27; &bogus;"
+    return [conn.server(0, "PA", http_response(body, "text/html"))]
+
+
 CASES: dict[str, Callable[[], list[Frame]] | Callable[[], list[str]]] = {
     "T01-http-url-decode.pcap": t01_http_url_decode,
+    "T02-html-entities.pcap": t02_html_entities,
 }
 
 

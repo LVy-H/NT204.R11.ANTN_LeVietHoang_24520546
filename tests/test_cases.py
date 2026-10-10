@@ -170,3 +170,24 @@ def test_t01_url_and_query_are_percent_decoded_once(run_case):
     assert packet["normalized"]["http"]["path"] == "/search page"
     assert packet["preprocess_status"] == "valid"
     assert packet["reason"] == []
+
+
+def test_t02_html_entities_are_decoded_and_unknown_ones_kept(run_case):
+    run = run_case(FLOW_FIXTURES / "T02-html-entities.pcap")
+    (packet,) = run.packets
+
+    assert run.exit_code == 0
+    assert packet["application"]["message"]["kind"] == "response"
+    assert packet["decoded"]["uri"] is None
+    assert packet["decoded"]["body"] == {
+        "text": "<script>alert(1)</script> & ' &bogus;",
+        "charset": "ascii",
+        "status": "decoded",
+        "invalid_byte_count": 0,
+        "first_invalid_offset": None,
+        "truncated": False,
+        "entity_count": 6,
+    }
+    assert packet["decoded"]["status"] == "decoded"
+    assert packet["issues"] == []
+    assert packet["preprocess_status"] == "valid"
