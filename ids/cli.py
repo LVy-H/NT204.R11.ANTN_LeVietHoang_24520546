@@ -2,25 +2,59 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import sys
+from collections.abc import Sequence
 
 from . import __version__
-from .capture import list_interfaces, open_capture
-from .logger import JsonlWriter
-from .pipeline import UNKNOWN_POLICIES, Pipeline
+from .capture import LiveSource, PcapSource, list_interfaces
+from .issues import ParseError
+from .parsers import PacketParser, ParserConfig
+from .pipeline import UNKNOWN_POLICIES, Runner, Stage
+from .sink import JsonlSink
 from .stats import Stats
 
 EXIT_OK = 0
 EXIT_ERROR = 1
-EXIT_USAGE = 2
-PROGRESS_EVERY = 10000
+EXIT_INTERRUPTED = 130
 WARNING_PREVIEW = 3
+
+
+def _parse_int(text: str) -> int:
+    try:
+        return int(text)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"not an integer: {text!r}") from None
+
+
+def non_negative_int(text: str) -> int:
+    value = _parse_int(text)
+    if value < 0:
+        raise argparse.ArgumentTypeError(f"must be >= 0, got {value}")
+    return value
+
+
+def positive_int(text: str) -> int:
+    value = _parse_int(text)
+    if value < 1:
+        raise argparse.ArgumentTypeError(f"must be > 0, got {value}")
+    return value
+
+
+def non_negative_float(text: str) -> float:
+    try:
+        value = float(text)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"not a number: {text!r}") from None
+    if not math.isfinite(value) or value < 0:
+        raise argparse.ArgumentTypeError(f"must be a finite number >= 0, got {text}")
+    return value
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="ids",
-        description="Packet Capture & Parser module for the IDS project",
+        description="IDS pipeline: packet capture and parsing, then the analysis stages",
     )
     source = parser.add_mutually_exclusive_group(required=True)
     source.add_argument(
@@ -40,7 +74,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="JSON Lines output file (default: stdout)",
     )
     parser.add_argument(
-        "--count", "-c", type=int, default=None, metavar="N", help="stop after N packets"
+        "--count",
+        "-c",
+        type=positive_int,
+        default=None,
+        metavar="N",
+        help="stop after N input records",
     )
     parser.add_argument(
         "--filter",
@@ -50,29 +89,42 @@ def build_parser() -> argparse.ArgumentParser:
         help="BPF filter applied by the capture library (live capture only)",
     )
     parser.add_argument(
-        "--unknown-policy",
-        choices=UNKNOWN_POLICIES,
-        default="emit",
-        help="emit packets with an undetected protocol, or skip them",
-    )
-    parser.add_argument(
-        "--idle-timeout",
-        type=float,
+        "--capture-idle-timeout",
+        type=non_negative_float,
         default=None,
         metavar="SECONDS",
-        help="stop live capture after N seconds without traffic",
+        help="stop live capture after SECONDS without traffic (0: never)",
+    )
+    parser.add_argument(
+        "--max-payload-bytes",
+        type=non_negative_int,
+        default=65535,
+        metavar="BYTES",
+        help="payload bytes kept in payload.data_b64 (default: 65535)",
     )
     parser.add_argument(
         "--preview-limit",
-        type=int,
-        default=None,
+        type=non_negative_int,
+        default=256,
         metavar="BYTES",
-        help="maximum number of payload bytes kept in the preview",
+        help="payload bytes rendered in payload.preview (default: 256)",
     )
-    parser.add_argument("--stats", action="store_true", help="print a run summary to stderr")
-    parser.add_argument("--quiet", "-q", action="store_true", help="suppress progress messages")
+    parser.add_argument(
+        "--unknown-policy",
+        choices=UNKNOWN_POLICIES,
+        default="emit",
+        help="emit packets whose application protocol is UNKNOWN, or skip them",
+    )
+    parser.add_argument("--stats", action="store_true", help="print a JSON run summary to stderr")
+    parser.add_argument(
+        "--quiet", "-q", action="store_true", help="suppress status messages on stderr"
+    )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     return parser
+
+
+def build_stages(args: argparse.Namespace) -> list[Stage]:
+    return []
 
 
 def _note(quiet: bool, message: str) -> None:
@@ -96,64 +148,63 @@ def _print_interfaces() -> int:
     return EXIT_OK
 
 
-def _run(source, pipeline, writer, stats, quiet) -> None:
-    for raw in source.packets():
-        event = pipeline.process(raw)
-        if event is None:
-            stats.skip()
-        else:
-            stats.observe(event)
-            writer.write(event)
-        if not quiet and stats.packets % PROGRESS_EVERY == 0:
-            _note(quiet, f"... {stats.packets} packets processed")
-
-
-def main(argv=None) -> int:
-    args = build_parser().parse_args(argv)
-
-    if args.list_interfaces:
-        return _print_interfaces()
-
-    try:
-        source = open_capture(
-            interface=args.interface,
-            path=args.pcap,
-            count=args.count,
+def _open_source(args: argparse.Namespace) -> PcapSource | LiveSource:
+    if args.interface is not None:
+        return LiveSource(
+            args.interface,
             bpf_filter=args.bpf_filter,
-            idle_timeout=args.idle_timeout,
+            count=args.count,
+            capture_idle_timeout=args.capture_idle_timeout,
         )
-    except (ValueError, OSError, RuntimeError) as error:
-        print(f"error: {error}", file=sys.stderr)
-        return EXIT_USAGE if isinstance(error, ValueError) else EXIT_ERROR
+    return PcapSource(args.pcap, count=args.count)
 
-    pipeline = Pipeline(unknown_policy=args.unknown_policy, preview_limit=args.preview_limit)
-    stats = Stats()
-    writer = JsonlWriter(args.output)
-    interrupted = False
 
-    _note(args.quiet, f"source: {source.source} {source.origin}")
-    try:
-        _run(source, pipeline, writer, stats, args.quiet)
-    except KeyboardInterrupt:
-        interrupted = True
-        _note(args.quiet, "interrupted, flushing what has been parsed so far")
-    except (OSError, RuntimeError) as error:
-        print(f"error: {error}", file=sys.stderr)
-        return EXIT_ERROR
-    finally:
-        writer.close()
-        source.close()
-
-    for warning in getattr(source, "warnings", [])[:WARNING_PREVIEW]:
+def _report(args: argparse.Namespace, source: PcapSource | LiveSource, stats: Stats) -> None:
+    warnings = source.warnings
+    for warning in warnings[:WARNING_PREVIEW]:
         print(f"warning: {warning}", file=sys.stderr)
+    hidden = len(warnings) - WARNING_PREVIEW
+    if hidden > 0:
+        print(f"warning: {hidden} more warnings not shown", file=sys.stderr)
     _note(
         args.quiet,
-        f"parsed {stats.emitted} events from {stats.packets} packets"
-        f" ({stats.skipped} skipped, {stats.packets_with_errors} with errors)",
+        f"wrote {stats.written} records from {stats.packets_seen} packets"
+        f" ({stats.dropped_count} dropped, {stats.skipped_count} skipped,"
+        f" {stats.packets_with_issues} with issues)",
     )
     if args.stats:
         summary = stats.to_dict()
         summary["source"] = source.describe()
         print(json.dumps(summary, indent=2), file=sys.stderr)
 
-    return EXIT_OK if not interrupted else 130
+
+def main(argv: Sequence[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
+    if args.list_interfaces:
+        return _print_interfaces()
+
+    source = _open_source(args)
+    stats = Stats()
+    stages = build_stages(args)
+    packet_parser = PacketParser(
+        ParserConfig(max_payload_bytes=args.max_payload_bytes, preview_limit=args.preview_limit)
+    )
+    interrupted = False
+
+    _note(args.quiet, f"source: {source.source} {source.origin}")
+    try:
+        with JsonlSink(args.output) as sink:
+            runner = Runner(packet_parser, stages, sink, stats, unknown_policy=args.unknown_policy)
+            try:
+                runner.run(source.items())
+            except KeyboardInterrupt:
+                interrupted = True
+                _note(args.quiet, "interrupted, flushing what has been processed so far")
+    except (ParseError, OSError, RuntimeError) as error:
+        print(f"error: {error}", file=sys.stderr)
+        return EXIT_ERROR
+    finally:
+        source.close()
+
+    _report(args, source, stats)
+    return EXIT_INTERRUPTED if interrupted else EXIT_OK

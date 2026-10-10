@@ -46,10 +46,11 @@ python main.py --list-interfaces          # liệt kê interface
 | `--count`, `-c` | Dừng sau N packet |
 | `--filter` | BPF filter (chỉ live capture) |
 | `--unknown-policy` | `emit` (mặc định) hoặc `skip` packet không nhận diện được protocol |
-| `--idle-timeout` | Dừng live capture sau N giây không có traffic |
+| `--capture-idle-timeout` | Dừng live capture sau N giây không có traffic (`0` = không dừng) |
 | `--preview-limit` | Số byte payload tối đa giữ trong `preview` |
+| `--max-payload-bytes` | Số byte payload tối đa giữ trong `payload.data_b64` (mặc định 65535) |
 | `--stats` | In thống kê tổng kết ra stderr |
-| `--quiet`, `-q` | Tắt thông báo tiến độ |
+| `--quiet`, `-q` | Tắt các dòng trạng thái trên stderr |
 
 Live capture cần `CAP_NET_RAW` (chạy bằng `sudo` hoặc `setcap`). Sau `uv sync` có thể
 gọi `python main.py ...` hoặc console script `ids`.
