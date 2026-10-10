@@ -17,7 +17,12 @@ def decode_entities(text: str) -> tuple[str, int]:
     def replace(match: re.Match[str]) -> str:
         nonlocal count
         reference = match.group(0)
-        value = html.unescape(reference)
+        try:
+            value = html.unescape(reference)
+        except ValueError:
+            # More decimal digits than int() accepts: a code point far above 0x10FFFF,
+            # which html.unescape itself maps to U+FFFD.
+            value = "\ufffd"
         if value != reference:
             count += 1
         return value

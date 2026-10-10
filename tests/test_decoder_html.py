@@ -48,3 +48,8 @@ def test_already_decoded_output_is_not_decoded_again():
 
 def test_invalid_code_point_reference_counts_as_replaced():
     assert decode_entities("&#0;") == ("\ufffd", 1)
+
+
+def test_reference_with_more_digits_than_int_allows_becomes_replacement_character():
+    reference = "&#" + "1" * 4301 + ";"
+    assert decode_entities(f"a{reference}b&amp;") == ("a\ufffdb&", 2)
