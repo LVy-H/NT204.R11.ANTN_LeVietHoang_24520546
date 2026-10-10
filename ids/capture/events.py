@@ -88,6 +88,10 @@ class EventsSource:
             self.warnings.append(f"line {line_number}: skipped record_type {record_type!r}")
             return None
         event, issues = decode_packet(obj)
+        if not isinstance(obj, dict):
+            event.packet_id = line_number
+            for issue in issues:
+                issue.context["line"] = line_number
         _clear_stage_outputs(event)
         event.issues.extend(issues)
         return event

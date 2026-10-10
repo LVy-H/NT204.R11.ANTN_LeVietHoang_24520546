@@ -46,6 +46,16 @@ def test_blank_lines_count_and_non_json_becomes_a_stub(tmp_path):
     assert (issue.stage, issue.code, issue.context) == ("load", "invalid_json", {"line": 4})
 
 
+def test_json_that_is_not_an_object_keeps_the_line_number(tmp_path):
+    _, events = load(write_lines(tmp_path, "[1, 2]", "null", "42", '"x"'))
+    assert [event.packet_id for event in events] == [1, 2, 3, 4]
+    contexts = [[(issue.code, issue.context) for issue in event.issues] for event in events]
+    assert contexts == [
+        [("invalid_type", {"field": "", "expected": "object", "got": got, "line": line})]
+        for line, got in enumerate(["list", "NoneType", "int", "str"], start=1)
+    ]
+
+
 def test_flow_and_message_lines_are_skipped_with_a_warning(tmp_path):
     path = write_lines(
         tmp_path,

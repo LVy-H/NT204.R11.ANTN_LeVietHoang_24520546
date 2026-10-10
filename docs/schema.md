@@ -357,6 +357,8 @@ Preprocessor and Flow Tracker. `decoded`, `normalized`, `preprocess_status`,
   `line <n>: skipped record_type '<type>'`.
 - A line that is not JSON becomes a stub packet record: `packet_id` = line number,
   `timestamp: null`, issue `load/invalid_json`, status `invalid`.
+- A line that is JSON but not an object (`[1, 2]`, `null`, `42`) also gets `packet_id` =
+  line number, with issue `load/invalid_type` whose context carries `line`.
 - A missing key loads as `null` / `[]` without an issue; the Preprocessor reports missing
   required fields. A value of the wrong type (or bad base64, unknown enum value) loads as
   `null` with issue `load/invalid_type`. `schema_version` other than `2` or `record_type`
