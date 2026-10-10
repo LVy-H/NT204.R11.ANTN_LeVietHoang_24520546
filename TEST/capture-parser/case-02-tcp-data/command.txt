@@ -1,1 +1,1 @@
-.venv/bin/python main.py --pcap TEST/fixtures/02-tcp-data.pcap --output TEST/case-02-tcp-data/output.jsonl --stats
+.venv/bin/python main.py --pcap TEST/capture-parser/fixtures/02-tcp-data.pcap --output TEST/capture-parser/case-02-tcp-data/output.jsonl --flows-output TEST/capture-parser/case-02-tcp-data/flows.jsonl --stats
