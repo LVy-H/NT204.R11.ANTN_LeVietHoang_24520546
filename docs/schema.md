@@ -189,6 +189,8 @@ The deepest bytes reached (application payload for TCP/UDP).
   `entity_count` counts HTML entities replaced (HTML, XML, plain text, or absent
   Content-Type on a non-binary body); unknown entities stay literal. Text is capped at
   `--max-decoded-bytes` (`truncated: true`).
+- `form` and `body` are both `null` (no issue) for a chunked body or one with a
+  `Content-Encoding` other than `identity`: those bytes are not the text.
 - `status`: worst status of the parts present.
 
 **MIME** (`kind: "mime"`): SMTP DATA content in one packet (when its header block has
@@ -222,7 +224,7 @@ Canonical values computed by the Preprocessor; raw fields keep their spelling.
 | `application_protocol` | `HTTP`, `DNS`, `SMTP`, `UNKNOWN` |
 | `src_ip`, `dst_ip` | Trimmed, canonical dotted quad; leading zeros read as decimal |
 | `src_port`, `dst_port` | |
-| `http` | `{method, scheme, host, port, path, headers}` or `null`. `host` lower case without trailing dot (IDNA for non-ASCII), `port` only when explicit, `scheme` only for absolute-form targets. `path` comes from `decoded.uri.path` with repeated `/` collapsed and dot segments removed (RFC 3986 §5.2.4). `headers` maps lower-case names to value lists in order |
+| `http` | `{method, scheme, host, port, path, headers}` or `null`. `host` lower case without trailing dot (IDNA for non-ASCII), `port` only when explicit, `scheme` only for absolute-form targets. `path` comes from `decoded.uri.path` with repeated `/` collapsed and dot segments removed (RFC 3986 §5.2.4); `null` for authority-form (`CONNECT host:port`) and asterisk-form (`*`) targets. `headers` maps lower-case names to value lists in order |
 | `dns` | `{names}`: question then answer names, lower case, no trailing dot, deduplicated; or `null` |
 | `smtp` | `{helo, mail_from, rcpt_to}` with domains lower-cased; or `null` |
 
