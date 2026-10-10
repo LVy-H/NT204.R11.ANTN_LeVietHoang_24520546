@@ -1,1 +1,1 @@
-.venv/bin/python main.py --pcap TEST/fixtures/08-dns-response.pcap --output TEST/case-08-dns-response/output.jsonl --stats
+.venv/bin/python main.py --pcap TEST/capture-parser/fixtures/08-dns-response.pcap --output TEST/capture-parser/case-08-dns-response/output.jsonl --flows-output TEST/capture-parser/case-08-dns-response/flows.jsonl --stats
