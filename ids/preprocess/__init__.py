@@ -1,3 +1,5 @@
-"""Preprocessor (spec §8): normalization, validation and the policy stage."""
-
 from __future__ import annotations
+
+from .stage import PREPROCESS_POLICIES, PreprocessConfig, PreprocessorStage
+
+__all__ = ["PREPROCESS_POLICIES", "PreprocessConfig", "PreprocessorStage"]

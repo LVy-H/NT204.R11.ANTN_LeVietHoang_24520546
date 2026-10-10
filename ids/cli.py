@@ -12,6 +12,7 @@ from .decoder import DecoderConfig, DecoderStage
 from .issues import ParseError
 from .parsers import PacketParser, ParserConfig
 from .pipeline import UNKNOWN_POLICIES, Runner, Stage
+from .preprocess import PREPROCESS_POLICIES, PreprocessConfig, PreprocessorStage
 from .sink import JsonlSink
 from .stats import Stats
 
@@ -129,6 +130,18 @@ def build_parser() -> argparse.ArgumentParser:
         default="emit",
         help="emit packets whose application protocol is UNKNOWN, or skip them",
     )
+    parser.add_argument(
+        "--invalid-policy",
+        choices=PREPROCESS_POLICIES,
+        default="mark",
+        help="invalid events: mark them in the output or drop them (default: mark)",
+    )
+    parser.add_argument(
+        "--unsupported-policy",
+        choices=PREPROCESS_POLICIES,
+        default="mark",
+        help="events without IPv4 + TCP/UDP: mark them or drop them (default: mark)",
+    )
     parser.add_argument("--stats", action="store_true", help="print a JSON run summary to stderr")
     parser.add_argument(
         "--quiet", "-q", action="store_true", help="suppress status messages on stderr"
@@ -138,7 +151,14 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def build_stages(args: argparse.Namespace) -> list[Stage]:
-    return [DecoderStage(DecoderConfig(max_decoded_bytes=args.max_decoded_bytes))]
+    return [
+        DecoderStage(DecoderConfig(max_decoded_bytes=args.max_decoded_bytes)),
+        PreprocessorStage(
+            PreprocessConfig(
+                invalid_policy=args.invalid_policy, unsupported_policy=args.unsupported_policy
+            )
+        ),
+    ]
 
 
 def _note(quiet: bool, message: str) -> None:
