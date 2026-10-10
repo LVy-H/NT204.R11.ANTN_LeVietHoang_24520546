@@ -6,8 +6,8 @@ from pathlib import Path
 
 from scapy.all import DNS, DNSQR, DNSRR, IP, TCP, UDP, Ether, Raw, wrpcapng
 
-ROOT = Path(__file__).resolve().parent.parent
-FIXTURES = ROOT / "TEST" / "fixtures"
+ROOT = Path(__file__).resolve().parents[2]
+FIXTURES = ROOT / "TEST" / "capture-parser" / "fixtures"
 
 LINKTYPE_ETHERNET = 1
 BASE_TIME = 1759000000

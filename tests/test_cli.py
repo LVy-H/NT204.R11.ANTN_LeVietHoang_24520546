@@ -13,7 +13,7 @@ from ids import __version__
 from ids.capture import PcapSource, live
 from ids.cli import main
 
-FIXTURES = Path(__file__).resolve().parents[1] / "TEST" / "fixtures"
+FIXTURES = Path(__file__).resolve().parents[1] / "TEST" / "capture-parser" / "fixtures"
 HANDSHAKE = str(FIXTURES / "01-tcp-handshake.pcap")
 TCP_DATA = str(FIXTURES / "02-tcp-data.pcap")
 HTTP_GET = str(FIXTURES / "04-http-get.pcap")

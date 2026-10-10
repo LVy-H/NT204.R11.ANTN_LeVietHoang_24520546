@@ -11,7 +11,7 @@ from ids.model import UNKNOWN, ApplicationInfo, RawPacket
 from ids.parsers import PacketParser, ParserConfig
 from ids.payload import sha256_hex
 
-FIXTURES = Path(__file__).resolve().parents[1] / "TEST" / "fixtures"
+FIXTURES = Path(__file__).resolve().parents[1] / "TEST" / "capture-parser" / "fixtures"
 
 
 def raw_packets(fixture):

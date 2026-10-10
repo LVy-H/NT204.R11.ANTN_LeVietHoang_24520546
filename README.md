@@ -72,7 +72,7 @@ Port chỉ là tín hiệu phụ khi nhận diện application protocol, chữ k
 định, nên HTTP trên port không chuẩn vẫn được nhận đúng. Lý do quyết định nằm trong
 `application.detection` (`method`, `confidence`, `evidence`, `scores`).
 
-Ví dụ output: `TEST/case-04-http-get/output.jsonl`, `TEST/case-12-malformed/output.jsonl`.
+Ví dụ output: `TEST/capture-parser/case-04-http-get/output.jsonl`, `TEST/capture-parser/case-12-malformed/output.jsonl`.
 
 ## Cấu trúc repo
 
@@ -85,7 +85,7 @@ ids/
   event.py           event chuẩn hoá
   cli.py             tham số dòng lệnh
 tests/               unit test (pytest)
-TEST/                fixture, lệnh chạy và kết quả của từng test case
+TEST/                test case theo module: TEST/<nhóm>/ (fixture, lệnh chạy, kết quả)
 ```
 
 ## Kiểm thử

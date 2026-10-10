@@ -19,7 +19,7 @@ from ids.parsers import PacketParser
 from ids.pipeline import UNKNOWN_POLICIES, Runner
 from ids.stats import Stats
 
-FIXTURES = Path(__file__).resolve().parents[1] / "TEST" / "fixtures"
+FIXTURES = Path(__file__).resolve().parents[1] / "TEST" / "capture-parser" / "fixtures"
 
 
 class ListSink:

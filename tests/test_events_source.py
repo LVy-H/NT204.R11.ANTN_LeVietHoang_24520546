@@ -10,7 +10,7 @@ from ids.capture import EventsSource, PcapSource
 from ids.codec import encode_line
 from ids.parsers import PacketParser
 
-FIXTURES = Path(__file__).resolve().parents[1] / "TEST" / "fixtures"
+FIXTURES = Path(__file__).resolve().parents[1] / "TEST" / "capture-parser" / "fixtures"
 
 
 def write_lines(tmp_path, *lines):
