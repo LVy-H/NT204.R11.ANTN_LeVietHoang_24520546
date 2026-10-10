@@ -247,8 +247,8 @@ An SMTP DATA body reassembled from the client segments that follow `DATA` / `354
 | `message_id` | str | `<flow_id>-<n>`, `n` 1-based per flow |
 | `flow_id` | str | Flow the message belongs to |
 | `protocol` | str | `SMTP` |
-| `packet_ids` | list[int] | Packets that contributed bytes to `data_b64` (none once `--max-message-bytes` is reached) |
-| `start_time`, `end_time` | float | First and last contributing packet |
+| `packet_ids` | list[int] | Packets that contributed bytes to `data_b64`; packets that arrive after `--max-message-bytes` was reached are not listed |
+| `start_time`, `end_time` | float | Times of the first and last body packet |
 | `data_b64` | str | Body bytes as sent, terminator `\r\n.\r\n` included, base64 |
 | `complete` | bool | Terminator seen; `false` when the flow ended first |
 | `truncated` | bool | More than `--max-message-bytes` (default 1 MiB) arrived; the rest was discarded |
@@ -264,7 +264,7 @@ Written once per flow when it ends.
 | Key | Type | Meaning |
 |---|---|---|
 | `schema_version`, `record_type` | | `2`, `"flow"` |
-| `flow_id` | str | `sha1("<proto>\|<lo_ip>:<lo_port>\|<hi_ip>:<hi_port>\|<start_time_us>")[:16]`; a new connection on the same 5-tuple gets a new id |
+| `flow_id` | str | `sha1("<proto>\|<lo_ip>:<lo_port>\|<hi_ip>:<hi_port>\|<start_time_us>")[:16]`; a new connection on the same 5-tuple gets a new id. `<start_time_us>` is the time of the flow's first processed packet in whole microseconds, which can be later than `start_time` when packets arrive out of order. A flow that replaces an ended flow on the same 5-tuple with the same `<start_time_us>` hashes `"…\|<start_time_us>\|<n>"` instead, `n` = 1, 2, … for each further such flow (remembered for the last `--max-flows` ended flows), so the ids stay distinct and deterministic |
 | `protocol` | str | `TCP` or `UDP` |
 | `application_protocol` | str | Best detection seen on the flow (payload evidence over port-only, then confidence); `UNKNOWN` if none |
 | `endpoint_a`, `endpoint_b` | `{ip, port}` | A is the initiator: sender of the first SYN without ACK, the destination of a first SYN-ACK, else the sender of the first packet |
