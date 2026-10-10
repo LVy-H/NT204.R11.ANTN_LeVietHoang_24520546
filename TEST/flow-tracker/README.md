@@ -43,3 +43,4 @@ dưới. Khi test, mọi record nằm chung một stream nên kiểm tra đượ
 | T06 | Event thiếu field tuỳ chọn (link, application, options, headers) | `T06-missing-fields.jsonl` | đủ bộ key, field thiếu là `null` / `[]`, `preprocess_status` = `valid`, không exception |
 | T07 | TCP handshake SYN, SYN/ACK, ACK | `T07-tcp-handshake.pcap` | 1 flow; packet 3 `flow.state` = `ESTABLISHED`; flow `tcp.state` = `ESTABLISHED`, `handshake_complete` = true, SYN 2 / ACK 2 |
 | T08 | Handshake + data hai chiều | `T08-tcp-bidirectional.pcap` | 1 `flow_id` trên mọi packet; `direction` = `forward` khi client gửi, `backward` khi server gửi; forward 4 / backward 3 packet |
+| T09 | Đóng FIN/ACK và huỷ bằng RST | `T09-tcp-close-reset.pcap` | flow 1 `CLOSED` / `end_reason` = `closed`, flow 2 `RESET` / `reset`; SYN dùng lại 5-tuple của flow 1 khi flow này còn chờ → flow mới, flow 1 được ghi ra trước SYN đó |

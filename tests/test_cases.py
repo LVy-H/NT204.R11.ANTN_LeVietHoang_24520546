@@ -469,3 +469,64 @@ def test_t08_both_directions_share_one_flow_id(run_case):
     assert flow["backward"] == {"packet_count": 3, "byte_count": 157, "payload_byte_count": 37}
     assert (flow["packet_count"], flow["byte_count"], flow["payload_byte_count"]) == (7, 330, 50)
     assert flow["tcp"]["state"] == "ESTABLISHED"
+
+
+def test_t09_graceful_close_and_reset_end_their_flows(run_case):
+    run = run_case(FLOW_FIXTURES / "T09-tcp-close-reset.pcap")
+    graceful = run.flow(run.packet(1)["flow"]["flow_id"])
+    aborted = run.flow(run.packet(9)["flow"]["flow_id"])
+
+    assert run.exit_code == 0
+    assert [run.packet(i)["flow"]["state"] for i in range(1, 9)] == [
+        "HANDSHAKE",
+        "HANDSHAKE",
+        "ESTABLISHED",
+        "ESTABLISHED",
+        "CLOSING",
+        "CLOSING",
+        "CLOSING",
+        "CLOSED",
+    ]
+    assert graceful["tcp"] == {
+        "state": "CLOSED",
+        "syn_count": 2,
+        "ack_count": 7,
+        "fin_count": 2,
+        "rst_count": 0,
+        "handshake_complete": True,
+        "midstream": False,
+    }
+    assert graceful["end_reason"] == "closed"
+    assert (graceful["packet_count"], graceful["byte_count"]) == (8, 324)
+
+    assert [run.packet(i)["flow"]["state"] for i in range(9, 13)] == [
+        "HANDSHAKE",
+        "HANDSHAKE",
+        "ESTABLISHED",
+        "RESET",
+    ]
+    assert aborted["tcp"]["state"] == "RESET"
+    assert aborted["tcp"]["rst_count"] == 1
+    assert aborted["end_reason"] == "reset"
+    assert (aborted["packet_count"], aborted["first_packet_id"], aborted["last_packet_id"]) == (
+        4,
+        9,
+        12,
+    )
+
+
+def test_t09_syn_reusing_a_closed_five_tuple_starts_a_new_flow(run_case):
+    run = run_case(FLOW_FIXTURES / "T09-tcp-close-reset.pcap")
+    graceful_id = run.packet(1)["flow"]["flow_id"]
+    reused = run.packet(13)
+
+    assert reused["flow"]["flow_id"] != graceful_id
+    assert reused["flow"]["flow_packet_index"] == 1
+    assert reused["flow"]["state"] == "HANDSHAKE"
+    # the lingering closed flow is exported before the SYN that replaces it
+    assert run.position(run.flow(graceful_id)) < run.position(reused)
+    replacement = run.flow(reused["flow"]["flow_id"])
+    assert replacement["tcp"]["state"] == "ESTABLISHED"
+    assert (replacement["first_packet_id"], replacement["last_packet_id"]) == (13, 15)
+    assert replacement["end_reason"] == "end_of_input"
+    assert len(run.flows) == 3

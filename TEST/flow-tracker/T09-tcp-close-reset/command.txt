@@ -1,0 +1,1 @@
+.venv/bin/python main.py --pcap TEST/flow-tracker/fixtures/T09-tcp-close-reset.pcap --output TEST/flow-tracker/T09-tcp-close-reset/output.jsonl --flows-output TEST/flow-tracker/T09-tcp-close-reset/flows.jsonl --stats

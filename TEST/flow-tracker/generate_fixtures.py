@@ -360,6 +360,29 @@ def t08_tcp_bidirectional() -> list[Frame]:
     ]
 
 
+def t09_tcp_close_reset() -> list[Frame]:
+    graceful = TcpConversation()
+    aborted = TcpConversation(client_port=CLIENT_PORT + 1, client_isn=2000, server_isn=7000)
+    reused = TcpConversation(client_isn=4000, server_isn=6000)
+    return [
+        graceful.client(0, "S"),
+        graceful.server(10, "SA"),
+        graceful.client(20, "A"),
+        graceful.client(30, "PA", b"bye\n"),
+        graceful.client(40, "FA"),
+        graceful.server(50, "A"),
+        graceful.server(60, "FA"),
+        graceful.client(70, "A"),
+        aborted.client(1000, "S"),
+        aborted.server(1010, "SA"),
+        aborted.client(1020, "A"),
+        aborted.client(1030, "R"),
+        reused.client(2000, "S"),
+        reused.server(2010, "SA"),
+        reused.client(2020, "A"),
+    ]
+
+
 CASES: dict[str, Callable[[], list[Frame]] | Callable[[], list[str]]] = {
     "T01-http-url-decode.pcap": t01_http_url_decode,
     "T02-html-entities.pcap": t02_html_entities,
@@ -370,6 +393,7 @@ CASES: dict[str, Callable[[], list[Frame]] | Callable[[], list[str]]] = {
     "T06-missing-fields.jsonl": t06_missing_fields,
     "T07-tcp-handshake.pcap": t07_tcp_handshake,
     "T08-tcp-bidirectional.pcap": t08_tcp_bidirectional,
+    "T09-tcp-close-reset.pcap": t09_tcp_close_reset,
 }
 
 
