@@ -155,7 +155,7 @@ payload with no command or reply line is DATA content, not a decode error.
   decoder still extracts what it can.
 - The JSONL source turns a non-JSON line into a stub event (`packet_id` = line number,
   `timestamp` None) with `Issue("load", "invalid_json")`.
-- Round-trip invariant: `decode(encode(e))` reproduces `e` for any event the parser produces.
+- Round-trip invariant: `decode_packet(encode(e))` reproduces `e` for any event the parser produces.
 
 ## 7. Decoder (`ids/decoder/`)
 
@@ -394,7 +394,7 @@ or skipped by `--unknown-policy`.
 - `PcapSource`: existing pcap/pcapng reader, unchanged behaviour; `warnings` declared on the
   source protocol.
 - `LiveSource`: Scapy, per-packet linktype, emits `Tick` on sniff timeouts.
-- `EventsSource`: JSONL (`-` = stdin) via `codec.decode`; only `record_type = packet` lines
+- `EventsSource`: JSONL (`-` = stdin) via `codec.decode_packet`; only `record_type = packet` lines
   are processed; `flow`/`message` lines are counted and ignored with a warning.
 
 ### 10.3 Sinks

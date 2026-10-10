@@ -276,7 +276,7 @@ Written once per flow when it ends.
 |---|---|
 | `preprocess_status` | `valid`, `partial`, `invalid` |
 | `processing_action` | `forward` (valid), `mark` (partial, or invalid / unsupported with policy `mark`), `drop` (never written; counted in `--stats`) |
-| decode `status` | `decoded`, `unchanged`, `partial`, `failed`, `not_applicable`; severity in that order from `not_applicable` (lowest) to `failed` |
+| decode `status` | `not_applicable`, `unchanged`, `decoded`, `partial`, `failed`; severity increases in that order |
 | TCP `state` | `NEW` (first packet not a SYN; `midstream: true`), `HANDSHAKE`, `ESTABLISHED`, `CLOSING` (a FIN seen), `CLOSED` (FIN both ways, each acknowledged), `RESET` |
 | `direction` | `forward`, `backward` |
 | `end_reason` | `closed`, `reset` (after the `--tcp-closed-timeout` linger, at end of input, or when a new SYN reuses the 5-tuple), `idle_timeout` (no packet for `--tcp-idle-timeout` / `--udp-idle-timeout` seconds; strictly greater than), `evicted` (`--max-flows` exceeded, least recently active first), `end_of_input` |
