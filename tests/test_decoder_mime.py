@@ -309,7 +309,7 @@ def test_lone_surrogate_in_rfc2231_filename_is_dropped():
     issues = Issues("decoder")
     data = (
         b"MIME-Version: 1.0\r\nContent-Type: application/octet-stream\r\n"
-        b"Content-Disposition: attachment; filename*=unicode_escape''%5Cud800\r\n\r\nhi"
+        b"Content-Disposition: attachment; filename*=utf-7''%2B2AA-\r\n\r\nhi"
     )
 
     result = decode_message(data, issues)
@@ -318,3 +318,31 @@ def test_lone_surrogate_in_rfc2231_filename_is_dropped():
     assert [i.code for i in issues.records] == ["invalid_charset_bytes"]
     assert issues.records[0].context["part"] == 0
     json.dumps(to_jsonable(result), ensure_ascii=False).encode("utf-8")
+
+
+def test_refused_charsets_in_rfc2231_parameters_are_never_decoded(monkeypatch):
+    def refuse(*args, **kwargs):
+        raise AssertionError("punycode decoder ran")
+
+    monkeypatch.setattr("encodings.punycode.punycode_decode", refuse)
+    issues = Issues("decoder")
+    data = (
+        b"Content-Type: multipart/mixed; boundary*=punycode''b1\r\n\r\n"
+        b"--b1\r\n"
+        b"Content-Type: text/plain; charset*=punycode''utf-8\r\n"
+        b"Content-Disposition: attachment; filename*=punycode''a.txt\r\n\r\n"
+        b"hi\r\n"
+        b"--b1\r\n"
+        b"Content-Type: text/plain; charset*=unicode-escape''utf-8\r\n"
+        b"Content-Disposition: attachment; filename*=raw-unicode-escape''%5Cu0041.txt\r\n\r\n"
+        b"ho\r\n"
+        b"--b1--\r\n"
+    )
+
+    result = decode_message(data, issues)
+
+    assert [(part.charset, part.filename, part.text) for part in result.parts] == [
+        ("utf-8", "a.txt", "hi"),
+        ("utf-8", "\\u0041.txt", "ho"),
+    ]
+    assert issues.records == []

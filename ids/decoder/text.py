@@ -12,6 +12,14 @@ _SURROGATE = re.compile("[\ud800-\udfff]")
 _REFUSED = frozenset({"punycode", "idna", "unicode-escape", "raw-unicode-escape"})
 
 
+def refused_charset(name: str) -> bool:
+    """True for a codec in _REFUSED (any alias); unknown or invalid names are not refused."""
+    try:
+        return codecs.lookup(name.strip().lower()).name in _REFUSED
+    except (LookupError, ValueError):  # unknown codec, NUL in the name
+        return False
+
+
 def _declared(data: bytes, declared_charset: str | None) -> tuple[str, str] | None:
     """Strict decode with a charset Python knows; None when unknown, failing or unsafe.
 
@@ -22,9 +30,9 @@ def _declared(data: bytes, declared_charset: str | None) -> tuple[str, str] | No
     name = declared_charset.strip().lower()
     if not name:
         return None
+    if refused_charset(name):
+        return None
     try:
-        if codecs.lookup(name).name in _REFUSED:
-            return None
         text = data.decode(name)
     except (LookupError, ValueError):  # unknown / non-text codec, bad name, UnicodeError
         return None

@@ -12,10 +12,20 @@ from email.parser import BytesParser
 from ..issues import Issues
 from ..model import DecodedMime, DecodeStatus, MimeHeaders, MimePart, worst_status
 from ..payload import sha256_hex
-from .text import decode_text
+from .text import decode_text, refused_charset
 
 
 class _SafeMessage(Message):
+    def get_param(
+        self, param: str, failobj: object = None, header: str = "content-type", unquote: bool = True
+    ) -> object:
+        # get_content_charset, get_filename and get_boundary all read RFC 2231 values here;
+        # a refused charset (quadratic punycode, escape codecs) is read as us-ascii instead
+        value = super().get_param(param, failobj, header, unquote)
+        if isinstance(value, tuple) and value[0] and refused_charset(value[0]):
+            return ("us-ascii", value[1], value[2])
+        return value
+
     def get_boundary(self, failobj: str | None = None) -> str | None:
         try:
             return super().get_boundary(failobj)
